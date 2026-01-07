@@ -1,0 +1,120 @@
+import { create } from 'zustand';
+import { Discussion, DiscussionCreate } from '../types';
+import { api } from '../services/api';
+
+interface DiscussionState {
+  discussions: Discussion[];
+  activeDiscussionId: string | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
+interface DiscussionActions {
+  fetchDiscussions: () => Promise<void>;
+  createDiscussion: (data?: DiscussionCreate) => Promise<Discussion>;
+  deleteDiscussion: (id: string) => Promise<void>;
+  setActiveDiscussionId: (id: string | null) => void;  // Local state only - no API call
+  activateDiscussion: (id: string) => Promise<void>;   // API call to mark as active on backend
+  updateDiscussionTitle: (id: string, title: string) => Promise<void>;
+  getActiveDiscussion: () => Discussion | undefined;
+  clearError: () => void;
+}
+
+type DiscussionStore = DiscussionState & DiscussionActions;
+
+export const useDiscussionStore = create<DiscussionStore>((set, get) => ({
+  // State
+  discussions: [],
+  activeDiscussionId: null,
+  isLoading: false,
+  error: null,
+
+  // Actions
+  fetchDiscussions: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const discussions = await api.getDiscussions();
+      set({ discussions, isLoading: false });
+
+      // Set first discussion as active if none active
+      const state = get();
+      if (!state.activeDiscussionId && discussions.length > 0) {
+        const active = discussions.find(d => d.is_active) || discussions[0];
+        set({ activeDiscussionId: active.id });
+      }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  createDiscussion: async (data?: DiscussionCreate) => {
+    set({ isLoading: true, error: null });
+    try {
+      const discussion = await api.createDiscussion(data);
+      set(state => ({
+        discussions: [discussion, ...state.discussions],
+        activeDiscussionId: discussion.id,
+        isLoading: false,
+      }));
+      return discussion;
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+      throw error;
+    }
+  },
+
+  deleteDiscussion: async (id: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.deleteDiscussion(id);
+      set(state => {
+        const newDiscussions = state.discussions.filter(d => d.id !== id);
+        const newActiveId = state.activeDiscussionId === id
+          ? (newDiscussions[0]?.id || null)
+          : state.activeDiscussionId;
+        return {
+          discussions: newDiscussions,
+          activeDiscussionId: newActiveId,
+          isLoading: false,
+        };
+      });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+      throw error;
+    }
+  },
+
+  // Local state update only - called when URL changes
+  setActiveDiscussionId: (id: string | null) => {
+    set({ activeDiscussionId: id });
+  },
+
+  // API call to persist active state on backend - called sparingly
+  activateDiscussion: async (id: string) => {
+    try {
+      await api.activateDiscussion(id);
+    } catch (error) {
+      set({ error: (error as Error).message });
+    }
+  },
+
+  updateDiscussionTitle: async (id: string, title: string) => {
+    try {
+      const updated = await api.updateDiscussion(id, { title });
+      set(state => ({
+        discussions: state.discussions.map(d =>
+          d.id === id ? { ...d, title: updated.title } : d
+        ),
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message });
+    }
+  },
+
+  getActiveDiscussion: () => {
+    const state = get();
+    return state.discussions.find(d => d.id === state.activeDiscussionId);
+  },
+
+  clearError: () => set({ error: null }),
+}));

@@ -6,6 +6,7 @@ export interface DocumentSource {
   filename: string;
   score: number;
   chunk_preview?: string;
+  citation_number?: number;  // Position in citation list for inline references
 }
 
 export interface Message {
@@ -17,6 +18,7 @@ export interface Message {
   tokens_used?: number;
   response_time_ms?: number;
   sources?: DocumentSource[];
+  citations?: Record<number, string>;  // Map citation numbers to document IDs
 }
 
 // Discussion types

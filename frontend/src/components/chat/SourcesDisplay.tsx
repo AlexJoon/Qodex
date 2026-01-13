@@ -63,6 +63,9 @@ function DocumentChip({ source }: DocumentChipProps) {
 
   return (
     <div className="document-chip" title={`${source.filename} (${scorePercent}% match)`}>
+      {source.citation_number && (
+        <span className="document-chip-citation">[{source.citation_number}]</span>
+      )}
       <FileText size={14} className="document-chip-icon" />
       <span className="document-chip-name">{truncatedName}</span>
       <span className="document-chip-score">{scorePercent}%</span>

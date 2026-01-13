@@ -1,10 +1,12 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { User, Bot, Copy, Check, Download, Loader2, RotateCcw } from 'lucide-react';
-import { Message } from '../../types';
+import { Message, DocumentSource } from '../../types';
 import { useState, useMemo, memo } from 'react';
 import { SourcesDisplay } from './SourcesDisplay';
+import { InlineCitation } from './InlineCitation';
 import { exportMessageToPDF } from '../../services/pdfExport';
+import { remarkCitations } from '../../utils/remarkCitations';
 import './ChatMessage.css';
 
 // Common emojis used as list markers
@@ -36,6 +38,47 @@ function startsWithEmoji(text: string): boolean {
     if (emojiSet.has(text.slice(0, i))) return true;
   }
   return false;
+}
+
+/**
+ * Parse citation markers [N] and replace with citation components
+ */
+function processCitations(text: string, sources?: DocumentSource[]): React.ReactNode[] {
+  if (!text) return [text];
+
+  // Regex to match [N] where N is one or more digits
+  const citationRegex = /\[(\d+)\]/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = citationRegex.exec(text)) !== null) {
+    // Add text before citation
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+
+    // Add citation component
+    const citationNumber = parseInt(match[1], 10);
+    const source = sources?.find(s => s.citation_number === citationNumber);
+
+    parts.push(
+      <InlineCitation
+        key={`cite-${match.index}-${citationNumber}`}
+        number={citationNumber}
+        source={source}
+      />
+    );
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : [text];
 }
 
 function processEmojiLists(content: string): string {
@@ -162,9 +205,14 @@ const markdownComponents = {
   h4({ children }: { children?: React.ReactNode }) {
     return <h4>{children}</h4>;
   },
+  // Custom citation component handler
+  citation({ number }: { number: number }) {
+    // This will be replaced dynamically with sources
+    return <span data-citation={number}>[{number}]</span>;
+  },
 };
 
-const remarkPlugins = [remarkGfm];
+const remarkPlugins = [remarkGfm, remarkCitations];
 
 export const ChatMessage = memo(function ChatMessage({ message, isStreaming, onRetry }: ChatMessageProps) {
   const isUser = message.role === 'user';
@@ -177,6 +225,27 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming, onR
     () => processEmojiLists(message.content),
     [message.content]
   );
+
+  // Create custom markdown components with citation support
+  const markdownComponentsWithCitations = useMemo(() => {
+    if (!message.sources || message.sources.length === 0) {
+      return markdownComponents;
+    }
+
+    // Return components with custom citation handler
+    return {
+      ...markdownComponents,
+      citation({ number }: { number: number }) {
+        const source = message.sources?.find(s => s.citation_number === number);
+        return (
+          <InlineCitation
+            number={number}
+            source={source}
+          />
+        );
+      },
+    };
+  }, [message.sources]);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(message.content);
@@ -249,7 +318,7 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming, onR
         <div className="message-body">
           <ReactMarkdown
             remarkPlugins={remarkPlugins}
-            components={markdownComponents}
+            components={markdownComponentsWithCitations}
           >
             {processedContent}
           </ReactMarkdown>

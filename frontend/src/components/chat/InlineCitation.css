@@ -1,0 +1,171 @@
+.inline-citation-wrapper {
+  position: relative;
+  display: inline;
+}
+
+.inline-citation {
+  color: var(--brand-600, #2563eb);
+  font-size: 0.75em;
+  font-weight: 600;
+  margin: 0 1px;
+  cursor: default;
+}
+
+.inline-citation.interactive {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.inline-citation.interactive:hover {
+  color: var(--brand-700, #1d4ed8);
+}
+
+.citation-tooltip {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 280px;
+  background: white;
+  border: 1px solid var(--gray-200, #e5e7eb);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  pointer-events: none;
+  animation: fadeIn 0.2s ease-in;
+  will-change: transform, opacity;
+}
+
+.citation-tooltip.top {
+  bottom: calc(100% + 8px);
+}
+
+.citation-tooltip.bottom {
+  top: calc(100% + 8px);
+}
+
+.citation-tooltip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+}
+
+.citation-tooltip.top::after {
+  bottom: -6px;
+  border-top: 6px solid white;
+}
+
+.citation-tooltip.bottom::after {
+  top: -6px;
+  border-bottom: 6px solid white;
+}
+
+.citation-tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--gray-700, #374151);
+}
+
+.citation-tooltip-filename {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.citation-tooltip-preview {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--gray-600, #4b5563);
+  margin-bottom: 8px;
+  max-height: 100px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.citation-tooltip-preview::-webkit-scrollbar {
+  width: 4px;
+}
+
+.citation-tooltip-preview::-webkit-scrollbar-track {
+  background: var(--gray-100, #f3f4f6);
+  border-radius: 2px;
+}
+
+.citation-tooltip-preview::-webkit-scrollbar-thumb {
+  background: var(--gray-300, #d1d5db);
+  border-radius: 2px;
+}
+
+.citation-tooltip-preview::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-400, #9ca3af);
+}
+
+.citation-tooltip-score {
+  font-size: 11px;
+  color: var(--brand-600, #2563eb);
+  font-weight: 500;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .citation-tooltip {
+    width: 240px;
+    padding: 10px;
+    font-size: 11px;
+  }
+
+  .citation-tooltip-filename {
+    font-size: 12px;
+  }
+
+  .citation-tooltip-preview {
+    font-size: 11px;
+    max-height: 80px;
+  }
+
+  .citation-tooltip-score {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .citation-tooltip {
+    width: 200px;
+    padding: 8px;
+    left: 0;
+    transform: translateX(0);
+  }
+
+  .citation-tooltip.top {
+    bottom: calc(100% + 6px);
+  }
+
+  .citation-tooltip.bottom {
+    top: calc(100% + 6px);
+  }
+
+  .citation-tooltip::after {
+    left: 20px;
+    transform: translateX(0);
+  }
+}

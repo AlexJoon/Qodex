@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { NotebookPen, MessageSquare, Settings, User, Trash2 } from 'lucide-react';
+import { SquarePen, MessageSquare, Settings, User, Trash2, PanelLeftClose, PanelLeft, MoreVertical, Check, Copy } from 'lucide-react';
 import { useDiscussionStore } from '../../stores/discussionStore';
 import { Discussion } from '../../types';
 import logo from '../../assets/logo.png';
@@ -8,6 +8,7 @@ import './Sidebar.css';
 
 export function Sidebar() {
   const navigate = useNavigate();
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const {
     discussions,
     activeDiscussionId,
@@ -66,12 +67,19 @@ export function Sidebar() {
   const grouped = groupByDate(discussions);
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       {/* Header */}
       <div className="sidebar-header">
         <div className="sidebar-logo">
           <img src={logo} alt="Qodex" className="sidebar-logo-img" />
         </div>
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="sidebar-collapse-btn"
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {isCollapsed ? <PanelLeft size={18} /> : <PanelLeftClose size={18} />}
+        </button>
       </div>
 
       {/* New Chat Button */}
@@ -81,8 +89,8 @@ export function Sidebar() {
           disabled={isLoading}
           className="new-chat-btn"
         >
-          <NotebookPen size={18} />
-          <span>New chat</span>
+          <SquarePen size={18} />
+          {!isCollapsed && <span>New Chat</span>}
         </button>
       </div>
 
@@ -98,36 +106,15 @@ export function Sidebar() {
             <p>No conversations yet</p>
           </div>
         ) : (
-          <>
-            <ConversationGroup
-              title="Today"
-              discussions={grouped.today}
-              activeId={activeDiscussionId}
-              onSelect={handleSelectDiscussion}
-              onDelete={deleteDiscussion}
-            />
-            <ConversationGroup
-              title="Yesterday"
-              discussions={grouped.yesterday}
-              activeId={activeDiscussionId}
-              onSelect={handleSelectDiscussion}
-              onDelete={deleteDiscussion}
-            />
-            <ConversationGroup
-              title="Previous 7 Days"
-              discussions={grouped.previous7Days}
-              activeId={activeDiscussionId}
-              onSelect={handleSelectDiscussion}
-              onDelete={deleteDiscussion}
-            />
-            <ConversationGroup
-              title="Older"
-              discussions={grouped.older}
-              activeId={activeDiscussionId}
-              onSelect={handleSelectDiscussion}
-              onDelete={deleteDiscussion}
-            />
-          </>
+          <ConversationGroup
+            title="Conversations"
+            discussions={discussions}
+            activeId={activeDiscussionId}
+            onSelect={handleSelectDiscussion}
+            onDelete={deleteDiscussion}
+            onActivate={activateDiscussion}
+            isCollapsed={isCollapsed}
+          />
         )}
       </div>
 
@@ -137,13 +124,17 @@ export function Sidebar() {
           <div className="sidebar-user-avatar">
             <User size={16} />
           </div>
-          <div className="sidebar-user-info">
-            <span className="sidebar-user-name">User</span>
-            <span className="sidebar-user-plan">Free plan</span>
-          </div>
-          <button className="sidebar-user-settings">
-            <Settings size={16} />
-          </button>
+          {!isCollapsed && (
+            <div className="sidebar-user-info">
+              <span className="sidebar-user-name">User</span>
+              <span className="sidebar-user-plan">Free plan</span>
+            </div>
+          )}
+          {!isCollapsed && (
+            <button className="sidebar-user-settings">
+              <Settings size={16} />
+            </button>
+          )}
         </div>
       </div>
     </aside>
@@ -156,14 +147,16 @@ interface ConversationGroupProps {
   activeId: string | null;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  onActivate: (id: string) => void;
+  isCollapsed?: boolean;
 }
 
-function ConversationGroup({ title, discussions, activeId, onSelect, onDelete }: ConversationGroupProps) {
+function ConversationGroup({ title, discussions, activeId, onSelect, onDelete, onActivate, isCollapsed }: ConversationGroupProps) {
   if (discussions.length === 0) return null;
 
   return (
     <div className="conversation-group">
-      <h3 className="conversation-group-title">{title}</h3>
+      {!isCollapsed && <h3 className="conversation-group-title">{title}</h3>}
       <div className="conversation-group-list">
         {discussions.map((discussion) => (
           <ConversationItem
@@ -172,6 +165,8 @@ function ConversationGroup({ title, discussions, activeId, onSelect, onDelete }:
             isActive={discussion.id === activeId}
             onSelect={() => onSelect(discussion.id)}
             onDelete={() => onDelete(discussion.id)}
+            onActivate={() => onActivate(discussion.id)}
+            isCollapsed={isCollapsed}
           />
         ))}
       </div>
@@ -184,27 +179,92 @@ interface ConversationItemProps {
   isActive: boolean;
   onSelect: () => void;
   onDelete: () => void;
+  onActivate: () => void;
+  isCollapsed?: boolean;
 }
 
-function ConversationItem({ discussion, isActive, onSelect, onDelete }: ConversationItemProps) {
+function ConversationItem({ discussion, isActive, onSelect, onDelete, onActivate, isCollapsed }: ConversationItemProps) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const title = discussion.title || discussion.messages[0]?.content.slice(0, 30) || 'New conversation';
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showMenu]);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const text = discussion.messages.map(m => `${m.role}: ${m.content}`).join('\n\n');
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => {
+      setCopied(false);
+      setShowMenu(false);
+    }, 1500);
+  };
+
+  const handleActivate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onActivate();
+    setShowMenu(false);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete();
+    setShowMenu(false);
+  };
 
   return (
     <div
       className={`conversation-item ${isActive ? 'active' : ''}`}
       onClick={onSelect}
     >
-      <MessageSquare size={16} className="conversation-item-icon" />
-      <span className="conversation-item-title">{title}</span>
-      <button
-        className="conversation-item-delete"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete();
-        }}
-      >
-        <Trash2 size={14} />
-      </button>
+      {isCollapsed ? (
+        <MessageSquare size={16} className="conversation-item-icon" />
+      ) : (
+        <>
+          <span className="conversation-item-title">{title}</span>
+          <div className="conversation-item-menu-container" ref={menuRef}>
+            <button
+              className="conversation-item-menu-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMenu(!showMenu);
+              }}
+            >
+              <MoreVertical size={14} />
+            </button>
+            {showMenu && (
+              <div className="conversation-menu">
+                <button className="conversation-menu-item" onClick={handleActivate}>
+                  <Check size={14} />
+                  <span>Activate</span>
+                </button>
+                <button className="conversation-menu-item" onClick={handleCopy}>
+                  <Copy size={14} />
+                  <span>{copied ? 'Copied!' : 'Copy'}</span>
+                </button>
+                <button className="conversation-menu-item delete" onClick={handleDelete}>
+                  <Trash2 size={14} />
+                  <span>Delete</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -17,6 +17,7 @@ class DocumentSource(BaseModel):
     filename: str
     score: float
     chunk_preview: Optional[str] = None
+    citation_number: Optional[int] = None  # Position in citation list for inline references
 
 
 class MessageBase(BaseModel):
@@ -38,6 +39,7 @@ class Message(MessageBase):
     tokens_used: Optional[int] = None
     response_time_ms: Optional[int] = None
     sources: Optional[List[DocumentSource]] = None
+    citations: Optional[dict] = None  # Map citation numbers to document IDs
 
     class Config:
         from_attributes = True

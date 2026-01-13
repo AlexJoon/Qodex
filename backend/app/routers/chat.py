@@ -116,9 +116,11 @@ async def stream_chat(request: ChatRequest):
     try:
         search_results = await rag_task
 
-        # Single-pass processing: build sources and context together
+        # Single-pass processing: build sources and context together with citation numbers
         seen_docs = set()
         context_parts = []
+        citation_number = 1
+
         for result in search_results:
             metadata = result.get("metadata")
             score = result.get("score", 0)
@@ -128,18 +130,20 @@ async def stream_chat(request: ChatRequest):
                 filename = metadata.get("filename", "Unknown")
                 content = metadata.get("content", "")
 
-                # Add to context
-                context_parts.append(f"[From {filename}]:\n{content}")
+                # Add to context with citation number
+                context_parts.append(f"[Source {citation_number} - {filename}]:\n{content}")
 
-                # Add to sources (dedupe by document)
+                # Add to sources (dedupe by document) with citation number
                 if doc_id not in seen_docs:
                     seen_docs.add(doc_id)
                     sources.append(DocumentSource(
                         id=doc_id,
                         filename=filename,
                         score=round(score, 3),
-                        chunk_preview=content[:150] + "..." if len(content) > 150 else content
+                        chunk_preview=content[:150] + "..." if len(content) > 150 else content,
+                        citation_number=citation_number
                     ))
+                    citation_number += 1
 
         if context_parts:
             context = "\n\n---\n\n".join(context_parts)

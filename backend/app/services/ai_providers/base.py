@@ -41,22 +41,35 @@ class BaseProvider(ABC):
     def _format_messages_for_api(
         self, messages: List[Message], context: Optional[str] = None
     ) -> List[Dict[str, str]]:
-        """Format messages for the API, optionally including context."""
+        """Format messages for the API, optionally including context with citation instructions."""
         formatted = []
 
         # Add system message with context if provided
         if context:
             formatted.append({
                 "role": "system",
-                "content": f"Use the following context to help answer the user's question:\n\n{context}\n\nProvide accurate and helpful responses based on this context when relevant."
+                "content": (
+                    "Use the following context to help answer the user's question. "
+                    "Each source is numbered. When you reference information from a specific source, "
+                    "add a citation marker [N] immediately after the relevant statement, where N is the source number.\n\n"
+                    "[Sources for reference]\n"
+                    f"{context}\n\n"
+                    "Guidelines:\n"
+                    "- Add [N] citations inline where information comes from source N\n"
+                    "- Multiple sources can be cited together like [1][2]\n"
+                    "- Be precise - cite at the claim level, not just at the end of paragraphs\n"
+                    "- Natural placement - citations should feel unobtrusive\n\n"
+                    "Now provide an accurate and helpful response with inline citations."
+                )
             })
 
-        # Add conversation messages
+        # Add conversation messages (filter out empty messages)
         for msg in messages:
-            formatted.append({
-                "role": msg.role.value,
-                "content": msg.content
-            })
+            if msg.content and msg.content.strip():
+                formatted.append({
+                    "role": msg.role.value,
+                    "content": msg.content
+                })
 
         return formatted
 

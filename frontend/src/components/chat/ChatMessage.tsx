@@ -4,6 +4,7 @@ import { User, Bot, Copy, Check, Download, Loader2, RotateCcw } from 'lucide-rea
 import { Message, DocumentSource } from '../../types';
 import { useState, useMemo, memo } from 'react';
 import { SourcesDisplay } from './SourcesDisplay';
+import { SuggestedQuestions } from './SuggestedQuestions';
 import { InlineCitation } from './InlineCitation';
 import { exportMessageToPDF } from '../../services/pdfExport';
 import { remarkCitations } from '../../utils/remarkCitations';
@@ -131,6 +132,7 @@ interface ChatMessageProps {
   message: Message;
   isStreaming?: boolean;
   onRetry?: (content: string) => void;
+  onQuestionClick?: (question: string) => void;
 }
 
 const providerNames: Record<string, string> = {
@@ -214,7 +216,7 @@ const markdownComponents = {
 
 const remarkPlugins = [remarkGfm, remarkCitations];
 
-export const ChatMessage = memo(function ChatMessage({ message, isStreaming, onRetry }: ChatMessageProps) {
+export const ChatMessage = memo(function ChatMessage({ message, isStreaming, onRetry, onQuestionClick }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -315,7 +317,7 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming, onR
           )}
         </div>
 
-        <div className="message-body">
+        <div className={`message-body ${isStreaming ? 'streaming' : ''}`}>
           <ReactMarkdown
             remarkPlugins={remarkPlugins}
             components={markdownComponentsWithCitations}
@@ -326,6 +328,15 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming, onR
           {/* Show source documents for assistant messages */}
           {!isUser && message.sources && message.sources.length > 0 && (
             <SourcesDisplay sources={message.sources} />
+          )}
+
+          {/* Show suggested questions for assistant messages */}
+          {!isUser && message.suggested_questions && message.suggested_questions.length > 0 && onQuestionClick && (
+            <SuggestedQuestions
+              questions={message.suggested_questions}
+              onQuestionClick={onQuestionClick}
+              isLoading={isStreaming}
+            />
           )}
         </div>
       </div>

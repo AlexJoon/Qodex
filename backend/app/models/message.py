@@ -40,6 +40,7 @@ class Message(MessageBase):
     response_time_ms: Optional[int] = None
     sources: Optional[List[DocumentSource]] = None
     citations: Optional[dict] = None  # Map citation numbers to document IDs
+    suggested_questions: Optional[List[str]] = None  # AI-generated follow-up questions
 
     class Config:
         from_attributes = True

@@ -38,6 +38,26 @@ class BaseProvider(ABC):
         """
         pass
 
+    @abstractmethod
+    async def generate_suggested_questions(
+        self,
+        conversation_history: List[Dict[str, str]],
+        last_response: str,
+        count: int = 5
+    ) -> List[str]:
+        """
+        Generate suggested follow-up questions based on conversation context.
+
+        Args:
+            conversation_history: List of message dicts with 'role' and 'content'
+            last_response: The assistant's most recent response
+            count: Number of questions to generate (default 5)
+
+        Returns:
+            List of suggested question strings (max `count` items)
+        """
+        pass
+
     def _format_messages_for_api(
         self, messages: List[Message], context: Optional[str] = None
     ) -> List[Dict[str, str]]:

@@ -1,5 +1,6 @@
-from typing import AsyncGenerator, List, Optional
+from typing import AsyncGenerator, List, Optional, Dict
 from mistralai import Mistral
+import json
 
 from app.models.message import Message
 from .base import BaseProvider, ProviderRegistry
@@ -63,6 +64,58 @@ class MistralProvider(BaseProvider):
         async for chunk in async_response:
             if chunk.data.choices and chunk.data.choices[0].delta.content:
                 yield chunk.data.choices[0].delta.content
+
+    async def generate_suggested_questions(
+        self,
+        conversation_history: List[Dict[str, str]],
+        last_response: str,
+        count: int = 5
+    ) -> List[str]:
+        """Generate suggested follow-up questions using Mistral."""
+        try:
+            system_prompt = f"""Based on this conversation, suggest {count} relevant follow-up questions the user might ask.
+
+Return ONLY a JSON array of question strings, nothing else.
+Example: ["Question 1?", "Question 2?", "Question 3?"]
+
+Guidelines:
+- Questions should be natural and conversational
+- Focus on clarifying details, exploring related topics, or going deeper
+- Keep questions concise (under 15 words)
+- Make them specific to the conversation context"""
+
+            messages = [
+                {"role": "system", "content": system_prompt},
+                *conversation_history[-6:],
+                {"role": "assistant", "content": last_response},
+                {"role": "user", "content": "Generate suggested follow-up questions."}
+            ]
+
+            response = await self.client.chat.complete_async(
+                model="mistral-small-latest",  # Fast model
+                messages=messages,
+                temperature=0.7,
+                max_tokens=200
+            )
+
+            content = response.choices[0].message.content.strip()
+
+            # Try to extract JSON array from response
+            if content.startswith('```'):
+                lines = content.split('\n')
+                content = '\n'.join(lines[1:-1]) if len(lines) > 2 else content
+                content = content.replace('```json', '').replace('```', '').strip()
+
+            questions = json.loads(content)
+
+            if isinstance(questions, list):
+                return [q for q in questions if isinstance(q, str)][:count]
+
+            return []
+
+        except Exception as e:
+            print(f"Failed to generate suggested questions (Mistral): {e}")
+            return []
 
 
 # Register the provider

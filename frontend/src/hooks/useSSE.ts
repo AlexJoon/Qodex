@@ -1,24 +1,33 @@
 import { useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { sseClient } from '../services/sse';
 import { useChatStore } from '../stores/chatStore';
 import { useDiscussionStore } from '../stores/discussionStore';
 import { useProviderStore } from '../stores/providerStore';
 import { useDocumentStore } from '../stores/documentStore';
 import { ProviderName } from '../types';
+import { api } from '../services/api';
 
 export function useSSE() {
+  const navigate = useNavigate();
   const messageIdRef = useRef<string>('');
 
-  const { addMessage, startStream, appendToStream, setStreamSources, finalizeStream, cancelStream } = useChatStore();
-  const { activeDiscussionId, fetchDiscussions } = useDiscussionStore();
+  const { addMessage, startStream, appendToStream, setStreamSources, setStreamSuggestedQuestions, finalizeStream, cancelStream } = useChatStore();
+  const { activeDiscussionId, updateDiscussionTitle } = useDiscussionStore();
   const { activeProvider } = useProviderStore();
   const { selectedDocumentIds } = useDocumentStore();
 
   const sendMessage = useCallback(
     async (content: string, provider?: ProviderName, discussionId?: string) => {
-      const targetDiscussionId = discussionId || activeDiscussionId;
+      let targetDiscussionId = discussionId || activeDiscussionId;
+
+      // Auto-create discussion if none exists (e.g., when starting a new chat)
       if (!targetDiscussionId) {
-        throw new Error('No active discussion');
+        const { createDiscussion } = useDiscussionStore.getState();
+        const newDiscussion = await createDiscussion();
+        targetDiscussionId = newDiscussion.id;
+        // Navigate to the new discussion URL
+        navigate(`/chat/${targetDiscussionId}`, { replace: true });
       }
 
       const selectedProvider = provider || activeProvider;
@@ -49,12 +58,24 @@ export function useSSE() {
             setStreamSources(event.sources);
           } else if (event.type === 'chunk') {
             appendToStream(event.content);
+          } else if (event.type === 'suggested_questions') {
+            setStreamSuggestedQuestions(event.questions);
           } else if (event.type === 'error') {
             throw new Error(event.error);
           } else if (event.type === 'done') {
             finalizeStream(messageIdRef.current);
-            // Refresh discussions to update title if changed
-            fetchDiscussions();
+
+            // Update discussion title in the store (backend may have updated it)
+            // This only updates metadata, NOT messages (chatStore is source of truth for messages)
+            if (targetDiscussionId) {
+              try {
+                const updatedDiscussion = await api.getDiscussion(targetDiscussionId);
+                updateDiscussionTitle(targetDiscussionId, updatedDiscussion.title);
+              } catch (error) {
+                console.error('Failed to update discussion title:', error);
+              }
+            }
+
             break;
           }
         }
@@ -64,6 +85,7 @@ export function useSSE() {
       }
     },
     [
+      navigate,
       activeDiscussionId,
       activeProvider,
       selectedDocumentIds,
@@ -71,9 +93,10 @@ export function useSSE() {
       startStream,
       appendToStream,
       setStreamSources,
+      setStreamSuggestedQuestions,
       finalizeStream,
       cancelStream,
-      fetchDiscussions,
+      updateDiscussionTitle,
     ]
   );
 

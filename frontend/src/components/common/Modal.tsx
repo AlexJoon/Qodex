@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
+import './Modal.css';
 
 interface ModalProps {
   isOpen: boolean;
@@ -8,12 +9,6 @@ interface ModalProps {
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg';
 }
-
-const sizeClasses = {
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-};
 
 export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
   // Close on escape key
@@ -36,30 +31,22 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="modal-overlay">
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/20 backdrop-blur-sm animate-fadeIn"
-        onClick={onClose}
-      />
+      <div className="modal-backdrop" onClick={onClose} />
 
       {/* Modal content */}
-      <div
-        className={`relative z-10 w-full ${sizeClasses[size]} bg-white rounded-xl shadow-xl animate-slideInUp`}
-      >
+      <div className={`modal-container modal-${size}`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
-          <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
-          >
+        <div className="modal-header">
+          <h2 className="modal-title">{title}</h2>
+          <button onClick={onClose} className="modal-close-btn">
             <X size={20} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="px-6 py-4">
+        <div className="modal-content">
           {children}
         </div>
       </div>

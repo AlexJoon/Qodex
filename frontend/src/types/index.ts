@@ -19,6 +19,7 @@ export interface Message {
   response_time_ms?: number;
   sources?: DocumentSource[];
   citations?: Record<number, string>;  // Map citation numbers to document IDs
+  suggested_questions?: string[];  // AI-generated follow-up questions
 }
 
 // Discussion types
@@ -103,7 +104,12 @@ export interface SSEErrorEvent {
   provider: string;
 }
 
-export type SSEEvent = SSEChunkEvent | SSESourcesEvent | SSEDoneEvent | SSEErrorEvent;
+export interface SSESuggestedQuestionsEvent {
+  type: 'suggested_questions';
+  questions: string[];
+}
+
+export type SSEEvent = SSEChunkEvent | SSESourcesEvent | SSESuggestedQuestionsEvent | SSEDoneEvent | SSEErrorEvent;
 
 // API Response types
 export interface ApiError {

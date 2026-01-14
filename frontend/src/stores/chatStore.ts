@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Message, MessageRole, DocumentSource } from '../types';
+import { api } from '../services/api';
 
 interface ChatState {
   messages: Message[];
@@ -7,15 +8,19 @@ interface ChatState {
   currentStreamContent: string;
   currentStreamProvider: string | null;
   currentStreamSources: DocumentSource[];
+  currentStreamSuggestedQuestions: string[];
   error: string | null;
+  isLoadingMessages: boolean;
 }
 
 interface ChatActions {
   setMessages: (messages: Message[]) => void;
   addMessage: (message: Message) => void;
+  loadMessagesForDiscussion: (discussionId: string | null) => Promise<void>;
   startStream: (provider: string) => void;
   appendToStream: (chunk: string) => void;
   setStreamSources: (sources: DocumentSource[]) => void;
+  setStreamSuggestedQuestions: (questions: string[]) => void;
   finalizeStream: (messageId: string) => void;
   cancelStream: () => void;
   clearMessages: () => void;
@@ -24,10 +29,6 @@ interface ChatActions {
 
 type ChatStore = ChatState & ChatActions;
 
-// Batching mechanism for stream updates
-let pendingChunks: string[] = [];
-let flushTimeout: ReturnType<typeof setTimeout> | null = null;
-const BATCH_INTERVAL_MS = 50; // Batch updates every 50ms instead of per-chunk
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   // State
@@ -36,11 +37,28 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   currentStreamContent: '',
   currentStreamProvider: null,
   currentStreamSources: [],
+  currentStreamSuggestedQuestions: [],
   error: null,
+  isLoadingMessages: false,
 
   // Actions
   setMessages: (messages: Message[]) => {
     set({ messages });
+  },
+
+  loadMessagesForDiscussion: async (discussionId: string | null) => {
+    if (!discussionId) {
+      set({ messages: [], isLoadingMessages: false });
+      return;
+    }
+
+    set({ isLoadingMessages: true, error: null });
+    try {
+      const discussion = await api.getDiscussion(discussionId);
+      set({ messages: discussion.messages, isLoadingMessages: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoadingMessages: false });
+    }
   },
 
   addMessage: (message: Message) => {
@@ -50,61 +68,41 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   startStream: (provider: string) => {
-    // Clear any pending batches
-    pendingChunks = [];
-    if (flushTimeout) {
-      clearTimeout(flushTimeout);
-      flushTimeout = null;
-    }
     set({
       isStreaming: true,
       currentStreamContent: '',
       currentStreamProvider: provider,
       currentStreamSources: [],
+      currentStreamSuggestedQuestions: [],
       error: null,
     });
   },
 
   appendToStream: (chunk: string) => {
-    // Batch chunks instead of updating state immediately
-    pendingChunks.push(chunk);
-
-    if (!flushTimeout) {
-      flushTimeout = setTimeout(() => {
-        const batchedContent = pendingChunks.join('');
-        pendingChunks = [];
-        flushTimeout = null;
-
-        set(state => ({
-          currentStreamContent: state.currentStreamContent + batchedContent,
-        }));
-      }, BATCH_INTERVAL_MS);
-    }
+    set(state => ({
+      currentStreamContent: state.currentStreamContent + chunk,
+    }));
   },
 
   setStreamSources: (sources: DocumentSource[]) => {
     set({ currentStreamSources: sources });
   },
 
-  finalizeStream: (messageId: string) => {
-    // Flush any pending chunks before finalizing
-    if (flushTimeout) {
-      clearTimeout(flushTimeout);
-      flushTimeout = null;
-    }
-    const remainingContent = pendingChunks.join('');
-    pendingChunks = [];
+  setStreamSuggestedQuestions: (questions: string[]) => {
+    set({ currentStreamSuggestedQuestions: questions });
+  },
 
+  finalizeStream: (messageId: string) => {
     const state = get();
-    const finalContent = state.currentStreamContent + remainingContent;
 
     const assistantMessage: Message = {
       id: messageId,
-      content: finalContent,
+      content: state.currentStreamContent,
       role: 'assistant' as MessageRole,
       provider: state.currentStreamProvider || undefined,
       timestamp: new Date().toISOString(),
       sources: state.currentStreamSources.length > 0 ? state.currentStreamSources : undefined,
+      suggested_questions: state.currentStreamSuggestedQuestions.length > 0 ? state.currentStreamSuggestedQuestions : undefined,
     };
 
     set(state => ({
@@ -113,21 +111,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       currentStreamContent: '',
       currentStreamProvider: null,
       currentStreamSources: [],
+      currentStreamSuggestedQuestions: [],
     }));
   },
 
   cancelStream: () => {
-    // Clear pending batches on cancel
-    pendingChunks = [];
-    if (flushTimeout) {
-      clearTimeout(flushTimeout);
-      flushTimeout = null;
-    }
     set({
       isStreaming: false,
       currentStreamContent: '',
       currentStreamProvider: null,
       currentStreamSources: [],
+      currentStreamSuggestedQuestions: [],
     });
   },
 

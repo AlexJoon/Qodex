@@ -336,6 +336,11 @@
   color: var(--gray-500);
 }
 
+.sidebar-user-settings-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .sidebar-user-settings {
   padding: 6px;
   border-radius: 6px;
@@ -347,4 +352,57 @@
 .sidebar-user-settings:hover {
   background-color: var(--gray-200);
   color: var(--gray-600);
+}
+
+.sidebar-settings-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+  min-width: 160px;
+  z-index: 1000;
+  animation: fadeInUp 0.15s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sidebar-settings-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--gray-700);
+  transition: background-color var(--transition-fast);
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.sidebar-settings-menu-item:hover {
+  background-color: var(--gray-100);
+}
+
+.sidebar-settings-menu-item.delete {
+  color: var(--red-600);
+}
+
+.sidebar-settings-menu-item.delete:hover {
+  background-color: var(--red-50);
 }

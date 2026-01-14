@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SquarePen, MessageSquare, Settings, User, Trash2, PanelLeftClose, PanelLeft, MoreVertical, Check, Copy } from 'lucide-react';
+import { SquarePen, MessageSquare, Settings, User, Trash2, PanelLeftClose, PanelLeft, MoreVertical, Check, Copy, Home, LogOut } from 'lucide-react';
 import { useDiscussionStore } from '../../stores/discussionStore';
 import { Discussion } from '../../types';
 import logo from '../../assets/qodex-logo.png';
@@ -9,6 +9,8 @@ import './Sidebar.css';
 export function Sidebar() {
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const settingsMenuRef = useRef<HTMLDivElement>(null);
   const {
     discussions,
     activeDiscussionId,
@@ -23,9 +25,38 @@ export function Sidebar() {
     fetchDiscussions();
   }, [fetchDiscussions]);
 
+  // Close settings menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(event.target as Node)) {
+        setShowSettingsMenu(false);
+      }
+    };
+
+    if (showSettingsMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showSettingsMenu]);
+
   const handleNewChat = () => {
     // Navigate to empty chat - discussion will be created when user sends first message
     navigate('/chat');
+  };
+
+  const handleHome = () => {
+    navigate('/');
+    setShowSettingsMenu(false);
+  };
+
+  const handleProfile = () => {
+    console.log('Profile clicked');
+    setShowSettingsMenu(false);
+  };
+
+  const handleLogout = () => {
+    console.log('Logout clicked');
+    setShowSettingsMenu(false);
   };
 
   const handleSelectDiscussion = (id: string) => {
@@ -130,9 +161,33 @@ export function Sidebar() {
             </div>
           )}
           {!isCollapsed && (
-            <button className="sidebar-user-settings">
-              <Settings size={16} />
-            </button>
+            <div className="sidebar-user-settings-container" ref={settingsMenuRef}>
+              <button
+                className="sidebar-user-settings"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSettingsMenu(!showSettingsMenu);
+                }}
+              >
+                <Settings size={16} />
+              </button>
+              {showSettingsMenu && (
+                <div className="sidebar-settings-menu">
+                  <button className="sidebar-settings-menu-item" onClick={handleHome}>
+                    <Home size={14} />
+                    <span>Home</span>
+                  </button>
+                  <button className="sidebar-settings-menu-item" onClick={handleProfile}>
+                    <User size={14} />
+                    <span>Profile</span>
+                  </button>
+                  <button className="sidebar-settings-menu-item delete" onClick={handleLogout}>
+                    <LogOut size={14} />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

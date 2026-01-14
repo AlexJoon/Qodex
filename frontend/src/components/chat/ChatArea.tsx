@@ -3,10 +3,12 @@ import { useChatStore } from '../../stores/chatStore';
 import { useDiscussionStore } from '../../stores/discussionStore';
 import { useProviderStore } from '../../stores/providerStore';
 import { useSSE } from '../../hooks/useSSE';
-import { api } from '../../services/api';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
-import { Code, Lightbulb, FileText, Sparkles, HelpCircle, BookOpen } from 'lucide-react';
+import { ChatHeader } from './ChatHeader';
+import { RotatingText } from './RotatingText';
+import { ThinkingIndicator } from './ThinkingIndicator';
+import { FileText, BookOpen, FlaskConical, Users, Video, Lightbulb, Microscope, BookMarked, GraduationCap, ArrowUpRight } from 'lucide-react';
 import './ChatArea.css';
 
 // Throttle function for scroll operations
@@ -37,12 +39,16 @@ function useThrottledScroll(delay: number = 100) {
 export function ChatArea() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = useState('');
-  const { messages, isStreaming, currentStreamContent, currentStreamProvider, currentStreamSources, setMessages } =
+  const prevDiscussionIdRef = useRef<string | null>(null);
+  const { messages, isStreaming, currentStreamContent, currentStreamProvider, currentStreamSources, currentStreamSuggestedQuestions, loadMessagesForDiscussion } =
     useChatStore();
   const { activeDiscussionId, discussions } = useDiscussionStore();
   const { fetchProviders } = useProviderStore();
   const { sendMessage } = useSSE();
   const throttledScroll = useThrottledScroll(100); // Throttle to max 10 scrolls/second
+
+  // Get current discussion for header and title
+  const currentDiscussion = discussions.find(d => d.id === activeDiscussionId);
 
   // Handler for retrying a message - finds the preceding user message and re-sends it
   const handleRetry = useCallback(
@@ -61,24 +67,35 @@ export function ChatArea() {
     [messages, sendMessage]
   );
 
+  // Handler for clicking suggested questions
+  const handleQuestionClick = useCallback(
+    (question: string) => {
+      sendMessage(question);
+    },
+    [sendMessage]
+  );
+
   useEffect(() => {
     fetchProviders();
   }, [fetchProviders]);
 
+  // Load messages ONLY when switching to a different discussion
+  // Don't reload if staying in the same discussion (prevents overwriting streaming state)
   useEffect(() => {
-    if (activeDiscussionId) {
-      const discussion = discussions.find((d) => d.id === activeDiscussionId);
-      if (discussion) {
-        setMessages(discussion.messages);
-      } else {
-        api.getDiscussion(activeDiscussionId).then((d) => {
-          setMessages(d.messages);
-        });
-      }
-    } else {
-      setMessages([]);
+    if (prevDiscussionIdRef.current !== activeDiscussionId) {
+      loadMessagesForDiscussion(activeDiscussionId);
+      prevDiscussionIdRef.current = activeDiscussionId;
     }
-  }, [activeDiscussionId, discussions, setMessages]);
+  }, [activeDiscussionId, loadMessagesForDiscussion]);
+
+  // Update browser title based on discussion
+  useEffect(() => {
+    if (activeDiscussionId && currentDiscussion) {
+      document.title = currentDiscussion.title || 'Qodex';
+    } else {
+      document.title = 'Qodex';
+    }
+  }, [activeDiscussionId, currentDiscussion]);
 
   useEffect(() => {
     // Throttle scroll during streaming, smooth scroll on new messages
@@ -115,6 +132,14 @@ export function ChatArea() {
       ) : (
         /* Normal layout with messages */
         <>
+          {/* Show header only when there's an active discussion */}
+          {activeDiscussionId && currentDiscussion && (
+            <ChatHeader
+              discussionId={activeDiscussionId}
+              discussionTitle={currentDiscussion.title}
+            />
+          )}
+
           <div className="chat-messages">
             <div className="chat-messages-inner">
               {messages.map((message) => (
@@ -122,8 +147,13 @@ export function ChatArea() {
                   key={message.id}
                   message={message}
                   onRetry={() => handleRetry(message.id)}
+                  onQuestionClick={handleQuestionClick}
                 />
               ))}
+
+              {isStreaming && !currentStreamContent && (
+                <ThinkingIndicator provider={currentStreamProvider || undefined} />
+              )}
 
               {isStreaming && currentStreamContent && (
                 <ChatMessage
@@ -134,8 +164,10 @@ export function ChatArea() {
                     provider: currentStreamProvider || undefined,
                     timestamp: new Date().toISOString(),
                     sources: currentStreamSources.length > 0 ? currentStreamSources : undefined,
+                    suggested_questions: currentStreamSuggestedQuestions.length > 0 ? currentStreamSuggestedQuestions : undefined,
                   }}
                   isStreaming
+                  onQuestionClick={handleQuestionClick}
                 />
               )}
 
@@ -163,12 +195,15 @@ interface QuickActionsProps {
 
 function QuickActions({ onSelectAction }: QuickActionsProps) {
   const quickActions = [
-    { icon: Code, label: 'Write code', prompt: 'Help me write code for ' },
-    { icon: Lightbulb, label: 'Explain concept', prompt: 'Explain the concept of ' },
-    { icon: FileText, label: 'Summarize text', prompt: 'Summarize the following text: ' },
-    { icon: Sparkles, label: 'Brainstorm ideas', prompt: 'Help me brainstorm ideas for ' },
-    { icon: HelpCircle, label: 'Answer questions', prompt: 'I have a question about ' },
-    { icon: BookOpen, label: 'Learn something', prompt: 'Teach me about ' },
+    { icon: FileText, label: 'Case studies', prompt: 'What case studies are available on ' },
+    { icon: BookOpen, label: 'Course readings', prompt: 'What readings cover ' },
+    { icon: FlaskConical, label: 'Simulations', prompt: 'Are there any simulations or interactive exercises for ' },
+    { icon: Users, label: 'Faculty expertise', prompt: 'Which faculty are teaching ' },
+    { icon: Video, label: 'Video resources', prompt: 'Are there any videos or multimedia resources about ' },
+    { icon: Lightbulb, label: 'Lesson plans', prompt: 'I need some ideas for a lesson plan on ' },
+    { icon: Microscope, label: 'Research methods', prompt: 'How are other instructors teaching ' },
+    { icon: BookMarked, label: 'Best practices', prompt: 'What are the best practices for teaching ' },
+    { icon: GraduationCap, label: 'Course examples', prompt: 'Show me example syllabi that cover ' },
   ];
 
   return (
@@ -181,6 +216,7 @@ function QuickActions({ onSelectAction }: QuickActionsProps) {
         >
           <action.icon size={16} />
           <span>{action.label}</span>
+          <ArrowUpRight size={16} />
         </button>
       ))}
     </div>
@@ -190,9 +226,20 @@ function QuickActions({ onSelectAction }: QuickActionsProps) {
 function EmptyState() {
   return (
     <div className="empty-state">
-      <h1 className="empty-state-title">How can I help you today?</h1>
+      <h1 className="empty-state-title">
+        <RotatingText
+          texts={[
+            "What would you like to explore today?",
+            "What teaching ideas can I help spark?",
+            "What would you like to discover?",
+            "How can I support your teaching today?",
+            "What's worth exploring today?",
+          ]}
+          interval={4500}
+        />
+      </h1>
       <p className="empty-state-subtitle">
-        Select an AI provider and ask me anything. I can help with coding, writing, analysis, and more.
+        Select an AI provider and ask me anything. I can help gather insights from syllabi and spark new ideas.
       </p>
     </div>
   );

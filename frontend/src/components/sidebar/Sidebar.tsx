@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { SquarePen, MessageSquare, Settings, User, Trash2, PanelLeftClose, PanelLeft, MoreVertical, Check, Copy } from 'lucide-react';
 import { useDiscussionStore } from '../../stores/discussionStore';
 import { Discussion } from '../../types';
-import logo from '../../assets/logo.png';
+import logo from '../../assets/qodex-logo.png';
 import './Sidebar.css';
 
 export function Sidebar() {
@@ -23,10 +23,9 @@ export function Sidebar() {
     fetchDiscussions();
   }, [fetchDiscussions]);
 
-  const handleNewChat = async () => {
-    const discussion = await createDiscussion();
-    // Navigate to the new discussion URL
-    navigate(`/chat/${discussion.id}`);
+  const handleNewChat = () => {
+    // Navigate to empty chat - discussion will be created when user sends first message
+    navigate('/chat');
   };
 
   const handleSelectDiscussion = (id: string) => {

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     # Pinecone Configuration
     pinecone_api_key: str = ""
+    pinecone_host: str = ""
     pinecone_environment: str = "us-east-1"
     pinecone_index_name: str = "qodex-documents"
 

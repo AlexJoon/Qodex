@@ -43,7 +43,11 @@ class PineconeService:
                     )
                 )
 
-            self._index = pc.Index(index_name)
+            # Use host if provided, otherwise use index name
+            if self.settings.pinecone_host:
+                self._index = pc.Index(host=self.settings.pinecone_host)
+            else:
+                self._index = pc.Index(index_name)
 
         return self._index
 

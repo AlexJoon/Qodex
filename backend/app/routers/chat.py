@@ -174,7 +174,8 @@ async def stream_chat(request: ChatRequest):
                 temperature=request.temperature,
                 max_tokens=request.max_tokens
             ),
-            provider=request.provider
+            provider=request.provider,
+            send_done=False  # Don't send done event yet
         ):
             # Collect response for saving
             if '"type": "chunk"' in chunk:
@@ -188,15 +189,50 @@ async def stream_chat(request: ChatRequest):
 
         # Save assistant response to discussion after streaming completes
         response_time = int((time.time() - start_time) * 1000)
+        full_response_text = "".join(full_response)
+
         assistant_message = Message(
             id=str(uuid.uuid4()),
-            content="".join(full_response),
+            content=full_response_text,
             role=MessageRole.ASSISTANT,
             provider=request.provider,
             timestamp=datetime.utcnow(),
             response_time_ms=response_time,
             sources=sources if sources else None
         )
+
+        # Generate suggested questions
+        try:
+            # Build conversation history for context
+            conversation_history = [
+                {"role": msg.role.value, "content": msg.content}
+                for msg in context_messages
+            ]
+
+            # Generate questions using the provider
+            suggested_questions = await provider.generate_suggested_questions(
+                conversation_history=conversation_history,
+                last_response=full_response_text,
+                count=5
+            )
+
+            # Send suggested questions event if any generated
+            if suggested_questions:
+                yield format_sse_event(
+                    "suggested_questions",
+                    {"questions": suggested_questions}
+                )
+
+                # Store in message object
+                assistant_message.suggested_questions = suggested_questions
+
+        except Exception as e:
+            logger.warning(f"Failed to generate suggested questions: {e}")
+            # Don't fail the whole request if question generation fails
+
+        # Send done event after suggested questions
+        yield format_sse_event("done", {"provider": request.provider})
+
         discussion.add_message(assistant_message)
 
     return StreamingResponse(

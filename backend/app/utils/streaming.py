@@ -8,7 +8,8 @@ logger = logging.getLogger(__name__)
 
 async def create_sse_response(
     generator: AsyncGenerator[str, None],
-    provider: str
+    provider: str,
+    send_done: bool = True
 ) -> AsyncGenerator[str, None]:
     """
     Create SSE formatted response from a generator.
@@ -16,6 +17,7 @@ async def create_sse_response(
     Args:
         generator: Async generator yielding text chunks
         provider: Name of the AI provider
+        send_done: Whether to send the done event (default: True)
 
     Yields:
         SSE formatted strings
@@ -41,12 +43,13 @@ async def create_sse_response(
         })
         yield f"data: {error_data}\n\n"
     finally:
-        # Send done event
-        done_data = json.dumps({
-            "type": "done",
-            "provider": provider
-        })
-        yield f"data: {done_data}\n\n"
+        # Send done event only if requested
+        if send_done:
+            done_data = json.dumps({
+                "type": "done",
+                "provider": provider
+            })
+            yield f"data: {done_data}\n\n"
 
 
 def format_sse_event(event_type: str, data: Any) -> str:

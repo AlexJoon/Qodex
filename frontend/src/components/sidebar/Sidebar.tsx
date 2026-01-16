@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SquarePen, MessageSquare, Settings, User, Trash2, PanelLeftClose, PanelLeft, MoreVertical, Check, Copy, Home, LogOut, Sparkles, Compass, GraduationCap } from 'lucide-react';
+import { SquarePen, MessageSquare, Settings, User, Trash2, PanelLeftClose, PanelLeft, MoreVertical, Check, Copy, Home, LogOut, Sparkles, Compass, GraduationCap, Mail } from 'lucide-react';
 import { useDiscussionStore } from '../../stores/discussionStore';
 import { useChatStore } from '../../stores/chatStore';
 import { Discussion } from '../../types';
 import logo from '../../assets/qodex-logo.png';
 import { SampleQuestionsDropdown } from './SampleQuestionsDropdown';
+import { ContactModal } from './ContactModal';
 import { SAMPLE_QUESTIONS } from '../../constants/sampleQuestions';
 import './Sidebar.css';
 
@@ -14,6 +15,7 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showSampleQuestions, setShowSampleQuestions] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
   const sampleQuestionsRef = useRef<HTMLDivElement>(null);
@@ -168,6 +170,10 @@ export function Sidebar() {
           <GraduationCap size={18} />
           {!isCollapsed && <span>Educators</span>}
         </button>
+        <button className="sidebar-nav-link" onClick={() => setShowContactModal(true)}>
+          <Mail size={18} />
+          {!isCollapsed && <span>Contact</span>}
+        </button>
       </div>
 
       {/* Conversations List */}
@@ -281,6 +287,12 @@ export function Sidebar() {
           )}
         </div>
       </div>
+
+      {/* Contact Modal */}
+      <ContactModal
+        isOpen={showContactModal}
+        onClose={() => setShowContactModal(false)}
+      />
     </aside>
   );
 }

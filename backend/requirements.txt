@@ -23,6 +23,10 @@ pypdf>=4.0.1
 python-docx>=1.1.0
 tiktoken>=0.5.2
 
+# Database
+supabase>=2.3.0
+PyJWT>=2.8.0
+
 # Utilities
 aiofiles>=23.2.1
 httpx>=0.26.0

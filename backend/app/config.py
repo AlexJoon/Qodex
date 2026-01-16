@@ -6,6 +6,10 @@ from typing import List
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
+    # Supabase Database Configuration
+    supabase_url: str = ""
+    supabase_key: str = ""
+
     # AI Provider API Keys
     openai_api_key: str = ""
     anthropic_api_key: str = ""

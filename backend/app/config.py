@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     # AI Model Configurations
     openai_model: str = "gpt-4-turbo-preview"
-    anthropic_model: str = "claude-3-sonnet-20240229"
+    anthropic_model: str = "claude-sonnet-4-20250514"
     mistral_model: str = "mistral-large-latest"
     cohere_model: str = "command-r-plus"
 

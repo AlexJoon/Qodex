@@ -1,11 +1,6 @@
 import { Zap } from 'lucide-react';
-import { QuickActions } from './QuickActions';
 
-interface EmptyStateProps {
-  onSelectAction: (prompt: string) => void;
-}
-
-export function EmptyState({ onSelectAction }: EmptyStateProps) {
+export function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center flex-1 px-4 py-12">
       {/* Logo */}
@@ -20,9 +15,6 @@ export function EmptyState({ onSelectAction }: EmptyStateProps) {
       <p className="text-text-secondary text-center max-w-md mb-8">
         Select an AI provider below and ask me anything. I can help with coding, writing, analysis, and more.
       </p>
-
-      {/* Quick Actions */}
-      <QuickActions onSelectAction={onSelectAction} />
 
       {/* Provider hint */}
       <p className="mt-8 text-xs text-text-tertiary">

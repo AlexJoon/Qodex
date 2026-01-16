@@ -11,7 +11,7 @@ export function NestedQuestionItem({ question, onQuestionSelect }: NestedQuestio
   const [showSubMenu, setShowSubMenu] = useState(false);
   const [subMenuStyle, setSubMenuStyle] = useState<React.CSSProperties>({});
   const itemRef = useRef<HTMLButtonElement>(null);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Position sub-menu to the right when it opens
   useEffect(() => {

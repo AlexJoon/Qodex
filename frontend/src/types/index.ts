@@ -109,7 +109,13 @@ export interface SSESuggestedQuestionsEvent {
   questions: string[];
 }
 
-export type SSEEvent = SSEChunkEvent | SSESourcesEvent | SSESuggestedQuestionsEvent | SSEDoneEvent | SSEErrorEvent;
+export interface SSEDiscussionTitleEvent {
+  type: 'discussion_title';
+  discussion_id: string;
+  title: string;
+}
+
+export type SSEEvent = SSEChunkEvent | SSESourcesEvent | SSESuggestedQuestionsEvent | SSEDiscussionTitleEvent | SSEDoneEvent | SSEErrorEvent;
 
 // API Response types
 export interface ApiError {

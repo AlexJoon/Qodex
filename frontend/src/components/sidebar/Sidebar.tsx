@@ -1,16 +1,22 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SquarePen, MessageSquare, Settings, User, Trash2, PanelLeftClose, PanelLeft, MoreVertical, Check, Copy, Home, LogOut } from 'lucide-react';
+import { SquarePen, MessageSquare, Settings, User, Trash2, PanelLeftClose, PanelLeft, MoreVertical, Check, Copy, Home, LogOut, Sparkles, Compass, GraduationCap } from 'lucide-react';
 import { useDiscussionStore } from '../../stores/discussionStore';
+import { useChatStore } from '../../stores/chatStore';
 import { Discussion } from '../../types';
 import logo from '../../assets/qodex-logo.png';
+import { SampleQuestionsDropdown } from './SampleQuestionsDropdown';
+import { SAMPLE_QUESTIONS } from '../../constants/sampleQuestions';
 import './Sidebar.css';
 
 export function Sidebar() {
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showSampleQuestions, setShowSampleQuestions] = useState(false);
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
+  const sampleQuestionsRef = useRef<HTMLDivElement>(null);
   const {
     discussions,
     activeDiscussionId,
@@ -19,7 +25,9 @@ export function Sidebar() {
     createDiscussion,
     deleteDiscussion,
     activateDiscussion,
+    setActiveDiscussionId,
   } = useDiscussionStore();
+  const { clearMessages } = useChatStore();
 
   useEffect(() => {
     fetchDiscussions();
@@ -39,9 +47,39 @@ export function Sidebar() {
     }
   }, [showSettingsMenu]);
 
+  // Close sample questions dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      // Check if click is inside the container OR inside the dropdown menu (which is position: fixed)
+      const isInsideContainer = sampleQuestionsRef.current && sampleQuestionsRef.current.contains(target);
+      const isInsideMenu = (target as Element).closest?.('.sample-questions-dropdown-menu');
+
+      if (!isInsideContainer && !isInsideMenu) {
+        setShowSampleQuestions(false);
+      }
+    };
+
+    if (showSampleQuestions) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showSampleQuestions]);
+
   const handleNewChat = () => {
     // Navigate to empty chat - discussion will be created when user sends first message
     navigate('/chat');
+  };
+
+  const handleSampleQuestionSelect = (question: string) => {
+    setShowSampleQuestions(false);
+    console.log('Sample question selected:', question);
+    // Clear any existing messages and discussion, then navigate with the question
+    clearMessages();
+    setActiveDiscussionId(null);
+    setPendingQuestion(question);
+    console.log('Navigating to /chat with initialMessage');
+    navigate('/chat', { state: { initialMessage: question } });
   };
 
   const handleHome = () => {
@@ -112,15 +150,23 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* New Chat Button */}
-      <div className="sidebar-new-chat">
+      {/* Navigation Links */}
+      <div className="sidebar-nav-links">
         <button
           onClick={handleNewChat}
           disabled={isLoading}
-          className="new-chat-btn"
+          className="sidebar-nav-link"
         >
           <SquarePen size={18} />
           {!isCollapsed && <span>New Chat</span>}
+        </button>
+        <button className="sidebar-nav-link">
+          <Compass size={18} />
+          {!isCollapsed && <span>Explore</span>}
+        </button>
+        <button className="sidebar-nav-link">
+          <GraduationCap size={18} />
+          {!isCollapsed && <span>Educators</span>}
         </button>
       </div>
 
@@ -130,21 +176,65 @@ export function Sidebar() {
           <div className="sidebar-loading">
             <div className="spinner" />
           </div>
-        ) : discussions.length === 0 ? (
-          <div className="sidebar-empty">
-            <MessageSquare size={24} />
-            <p>No conversations yet</p>
-          </div>
         ) : (
-          <ConversationGroup
-            title="Conversations"
-            discussions={discussions}
-            activeId={activeDiscussionId}
-            onSelect={handleSelectDiscussion}
-            onDelete={deleteDiscussion}
-            onActivate={activateDiscussion}
-            isCollapsed={isCollapsed}
-          />
+          <>
+            {/* Conversations heading - always visible */}
+            {!isCollapsed && <h3 className="sidebar-section-title">Conversations</h3>}
+
+            {/* Journey button - always visible */}
+            <div className="sidebar-journey-section">
+              {/* Normal state - full journey button */}
+              <div className="sidebar-journey-normal">
+                <div className="sidebar-start-journey-container" ref={sampleQuestionsRef}>
+                  <button className="sidebar-start-journey-btn" onClick={() => setShowSampleQuestions(!showSampleQuestions)}>
+                    <Sparkles size={16} />
+                    <span>Start a new journey</span>
+                  </button>
+                  <SampleQuestionsDropdown
+                    isOpen={showSampleQuestions}
+                    onToggle={() => setShowSampleQuestions(!showSampleQuestions)}
+                    onQuestionSelect={handleSampleQuestionSelect}
+                    questions={SAMPLE_QUESTIONS}
+                    isCollapsed={isCollapsed}
+                  />
+                </div>
+              </div>
+
+              {/* Collapsed state - just sparkle icon */}
+              <div className="sidebar-journey-collapsed">
+                <button
+                  className="sidebar-collapsed-sparkle-btn"
+                  onClick={() => setShowSampleQuestions(!showSampleQuestions)}
+                >
+                  <Sparkles size={20} />
+                </button>
+                <SampleQuestionsDropdown
+                  isOpen={showSampleQuestions}
+                  onToggle={() => setShowSampleQuestions(!showSampleQuestions)}
+                  onQuestionSelect={handleSampleQuestionSelect}
+                  questions={SAMPLE_QUESTIONS}
+                  isCollapsed={isCollapsed}
+                />
+              </div>
+            </div>
+
+            {/* Discussion list */}
+            {discussions.length > 0 && (
+              <div className="conversation-group-list">
+                {discussions.map((discussion) => (
+                  <ConversationItem
+                    key={discussion.id}
+                    discussion={discussion}
+                    isActive={discussion.id === activeDiscussionId}
+                    onSelect={() => handleSelectDiscussion(discussion.id)}
+                    onDelete={() => deleteDiscussion(discussion.id)}
+                    onActivate={() => activateDiscussion(discussion.id)}
+                    isCollapsed={isCollapsed}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 

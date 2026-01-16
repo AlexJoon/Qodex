@@ -66,36 +66,38 @@
   color: var(--gray-700);
 }
 
-/* New Chat Button */
-.sidebar-new-chat {
-  padding: 12px 0;
+/* Navigation Links */
+.sidebar-nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-bottom: 1px solid var(--gray-200);
 }
 
-.new-chat-btn {
+.sidebar-nav-link {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
-  padding: 10px 16px;
-  background-color: transparent;
+  padding: 8px;
+  background: none;
   border: none;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--gray-700);
+  color: var(--gray-600);
+  cursor: pointer;
   transition: all var(--transition-fast);
 }
 
-.new-chat-btn:hover:not(:disabled) {
+.sidebar-nav-link:hover {
   background-color: var(--gray-100);
+  color: var(--brand-600);
 }
 
-.new-chat-btn:disabled {
-  opacity: 0.5;
-}
-
-.sidebar.collapsed .new-chat-btn {
+.sidebar.collapsed .sidebar-nav-link {
   justify-content: center;
   padding: 10px;
 }
@@ -139,6 +141,91 @@
 
 .sidebar-empty p {
   font-size: 13px;
+}
+
+/* Journey Section - Always visible */
+.sidebar-journey-section {
+  margin-bottom: 12px;
+}
+
+.sidebar.collapsed .sidebar-journey-section {
+  padding: 0 8px;
+}
+
+.sidebar-journey-normal {
+  display: block;
+}
+
+.sidebar.collapsed .sidebar-journey-normal {
+  display: none;
+}
+
+.sidebar-journey-collapsed {
+  display: none;
+  text-align: center;
+}
+
+.sidebar.collapsed .sidebar-journey-collapsed {
+  display: block;
+}
+
+.sidebar-collapsed-sparkle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--brand-600);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.sidebar-collapsed-sparkle-btn:hover {
+  background-color: var(--gray-100);
+}
+
+.sidebar-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: capitalize;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+  padding: 0 12px;
+}
+
+.sidebar-start-journey-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sidebar-start-journey-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--gray-600);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.sidebar-start-journey-btn:hover {
+  background-color: var(--gray-100);
+  color: var(--brand-600);
+}
+
+.sidebar-start-journey-btn svg {
+  flex-shrink: 0;
+  color: var(--brand-600);
 }
 
 /* Conversation Groups */

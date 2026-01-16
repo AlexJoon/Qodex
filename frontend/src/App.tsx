@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useParams, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/sidebar/Sidebar';
 import { ChatArea } from './components/chat/ChatArea';
 import { useDiscussionStore } from './stores/discussionStore';
@@ -9,7 +9,9 @@ import './App.css';
 function ChatPage() {
   const { discussionId } = useParams<{ discussionId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { setActiveDiscussionId, discussions } = useDiscussionStore();
+  const initialMessage = location.state?.initialMessage;
 
   // URL is the single source of truth - sync URL param to store
   useEffect(() => {
@@ -28,7 +30,7 @@ function ChatPage() {
     }
   }, [discussionId, discussions, setActiveDiscussionId, navigate]);
 
-  return <ChatArea />;
+  return <ChatArea initialMessage={initialMessage} />;
 }
 
 function AppLayout() {

@@ -36,10 +36,15 @@ function useThrottledScroll(delay: number = 100) {
   }, [delay]);
 }
 
-export function ChatArea() {
+interface ChatAreaProps {
+  initialMessage?: string;
+}
+
+export function ChatArea({ initialMessage }: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = useState('');
   const prevDiscussionIdRef = useRef<string | null>(null);
+  const hasAutoSentRef = useRef(false);
   const { messages, isStreaming, currentStreamContent, currentStreamProvider, currentStreamSources, currentStreamSuggestedQuestions, loadMessagesForDiscussion } =
     useChatStore();
   const { activeDiscussionId, discussions } = useDiscussionStore();
@@ -106,6 +111,29 @@ export function ChatArea() {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, currentStreamContent, isStreaming, throttledScroll]);
+
+  // Auto-send initial message from sample questions
+  useEffect(() => {
+    // Reset the ref when initialMessage changes to allow new auto-sends
+    if (initialMessage) {
+      console.log('Initial message received:', initialMessage);
+      hasAutoSentRef.current = false;
+    }
+  }, [initialMessage]);
+
+  useEffect(() => {
+    console.log('Auto-send check:', {
+      initialMessage,
+      hasAutoSent: hasAutoSentRef.current,
+      isStreaming,
+      messageCount: messages.length
+    });
+    if (initialMessage && !hasAutoSentRef.current && !isStreaming && messages.length === 0) {
+      console.log('Auto-sending message:', initialMessage);
+      hasAutoSentRef.current = true;
+      sendMessage(initialMessage);
+    }
+  }, [initialMessage, isStreaming, messages.length, sendMessage]);
 
   const handleQuickAction = (prompt: string) => {
     setInputValue(prompt);

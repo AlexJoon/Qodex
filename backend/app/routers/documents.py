@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
+from datetime import datetime
+import json
 
 from app.models import Document
 from app.services.document_service import get_document_service
@@ -28,6 +30,7 @@ class SearchRequest(BaseModel):
 class SearchResult(BaseModel):
     """Search result model."""
     id: str
+    document_id: Optional[str] = None
     score: float
     content: str
     filename: str
@@ -85,13 +88,13 @@ async def list_documents():
 
 @router.get("/{document_id}", response_model=Document)
 async def get_document(document_id: str):
-    """Get a document by ID."""
+    """Get document metadata."""
     doc_service = get_document_service()
-    document = doc_service.get_document(document_id)
-
+    document = await doc_service.get_document(document_id)
+    
     if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
-
+        raise HTTPException(status_code=404, detail=f"Document not found: {document_id}")
+    
     return document
 
 
@@ -121,9 +124,126 @@ async def search_documents(request: SearchRequest):
     return [
         SearchResult(
             id=r["id"],
+            document_id=r["metadata"].get("document_id") if r.get("metadata") else None,
             score=r["score"],
             content=r["metadata"].get("content", "") if r.get("metadata") else "",
             filename=r["metadata"].get("filename", "") if r.get("metadata") else ""
         )
         for r in results
     ]
+
+
+@router.get("/{document_id}/content")
+async def get_document_content(document_id: str):
+    """Get full document content with chunks for preview."""
+    doc_service = get_document_service()
+    
+    try:
+        content = await doc_service.get_document_content(document_id)
+        return content
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get document content: {str(e)}")
+
+
+@router.get("/{document_id}/chunks")
+async def get_document_chunks(document_id: str):
+    """Get document chunks for preview."""
+    doc_service = get_document_service()
+    
+    try:
+        chunks = await doc_service.get_document_chunks(document_id)
+        return {"chunks": chunks}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get document chunks: {str(e)}")
+
+
+class DocumentChatRequest(BaseModel):
+    """Request model for document-specific chat."""
+    message: str
+    provider: str
+    temperature: float = 0.7
+    max_tokens: int = 4096
+
+
+@router.post("/{document_id}/chat")
+async def chat_with_document(document_id: str, request: DocumentChatRequest):
+    """Chat specifically with this document context."""
+    doc_service = get_document_service()
+    
+    try:
+        # Get document content for context
+        document_content = await doc_service.get_document_content(document_id)
+        
+        # Create a temporary discussion ID for document chat
+        import uuid
+        temp_discussion_id = str(uuid.uuid4())
+        
+        # Import chat functionality
+        from app.routers.chat import ChatRequest
+        from app.services.ai_providers import ProviderRegistry
+        from app.config import get_settings
+        from app.models import Message, MessageRole
+        
+        # Get provider configuration
+        settings = get_settings()
+        provider_configs = {
+            "openai": (settings.openai_api_key, settings.openai_model),
+            "mistral": (settings.mistral_api_key, settings.mistral_model),
+            "claude": (settings.anthropic_api_key, settings.anthropic_model),
+            "cohere": (settings.cohere_api_key, settings.cohere_model),
+        }
+        
+        if request.provider not in provider_configs:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid provider: {request.provider}"
+            )
+        
+        api_key, model = provider_configs[request.provider]
+        if not api_key:
+            raise HTTPException(
+                status_code=400,
+                detail=f"API key not configured for provider: {request.provider}"
+            )
+        
+        # Get provider and stream response
+        provider = ProviderRegistry.get_provider(request.provider, api_key, model)
+        
+        # Create user message
+        user_message = Message(
+            id=str(uuid.uuid4()),
+            content=request.message,
+            role=MessageRole.USER,
+            timestamp=datetime.utcnow().isoformat()
+        )
+        
+        # Format context with document content
+        context = f"Document: {document_content['filename']}\n\n{document_content['content']}"
+        
+        # Stream response
+        async def generate_response():
+            async for chunk in provider.stream_completion(
+                messages=[user_message],
+                context=context,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens
+            ):
+                yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+            
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        
+        from fastapi.responses import StreamingResponse
+        return StreamingResponse(
+            generate_response(),
+            media_type="text/plain",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"}
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to chat with document: {str(e)}")

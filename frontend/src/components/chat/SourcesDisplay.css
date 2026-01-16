@@ -27,6 +27,18 @@
   cursor: default;
 }
 
+.document-chip.clickable {
+  cursor: pointer;
+}
+
+.document-chip.clickable:hover {
+  background-color: var(--brand-50);
+  border-color: var(--brand-200);
+  color: var(--brand-700);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .document-chip:hover {
   background-color: var(--gray-100);
   border-color: var(--gray-300);

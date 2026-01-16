@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { DocumentSource } from '../../types';
+import { useDocumentPreviewStore } from '../../stores/documentPreviewStore';
 import './SourcesDisplay.css';
 
 interface SourcesDisplayProps {
@@ -10,6 +11,7 @@ interface SourcesDisplayProps {
 
 export function SourcesDisplay({ sources, maxVisible = 3 }: SourcesDisplayProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const { openDocumentPreview } = useDocumentPreviewStore();
 
   if (!sources || sources.length === 0) {
     return null;
@@ -22,7 +24,11 @@ export function SourcesDisplay({ sources, maxVisible = 3 }: SourcesDisplayProps)
     <div className="sources-display">
       <div className="sources-chips">
         {visibleSources.map((source) => (
-          <DocumentChip key={source.id} source={source} />
+          <DocumentChip 
+            key={source.id} 
+            source={source} 
+            onClick={() => openDocumentPreview(source.document_id || source.id)}
+          />
         ))}
 
         {!isExpanded && hiddenCount > 0 && (
@@ -51,9 +57,10 @@ export function SourcesDisplay({ sources, maxVisible = 3 }: SourcesDisplayProps)
 
 interface DocumentChipProps {
   source: DocumentSource;
+  onClick: () => void;
 }
 
-function DocumentChip({ source }: DocumentChipProps) {
+function DocumentChip({ source, onClick }: DocumentChipProps) {
   const truncatedName = source.filename.length > 24
     ? source.filename.slice(0, 21) + '...'
     : source.filename;
@@ -62,7 +69,11 @@ function DocumentChip({ source }: DocumentChipProps) {
   const scorePercent = Math.round(source.score * 100);
 
   return (
-    <div className="document-chip" title={`${source.filename} (${scorePercent}% match)`}>
+    <div 
+      className="document-chip clickable" 
+      title={`${source.filename} (${scorePercent}% match) - Click to preview`}
+      onClick={onClick}
+    >
       {source.citation_number && (
         <span className="document-chip-citation">[{source.citation_number}]</span>
       )}

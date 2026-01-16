@@ -3,6 +3,7 @@ export type MessageRole = 'user' | 'assistant' | 'system';
 
 export interface DocumentSource {
   id: string;
+  document_id?: string;
   filename: string;
   score: number;
   chunk_preview?: string;

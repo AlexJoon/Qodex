@@ -194,6 +194,31 @@ class PineconeService:
 
         return results
 
+    async def get_chunks_by_document(self, document_id: str) -> List[Dict[str, Any]]:
+        """
+        Get all chunks for a specific document.
+        
+        Args:
+            document_id: ID of the document
+            
+        Returns:
+            List of chunks with their metadata
+        """
+        print(f"DEBUG: get_chunks_by_document called with document_id: {document_id}")
+        
+        # Query Pinecone for all chunks of this document
+        # Using a dummy embedding vector to retrieve all matching documents
+        dummy_embedding = [0.0] * 1536  # OpenAI embedding dimension
+        
+        results = await self.query_vectors(
+            query_embedding=dummy_embedding,
+            top_k=1000,  # Large number to get all chunks
+            filter={"document_id": document_id}
+        )
+        
+        print(f"DEBUG: Found {len(results)} chunks for document {document_id}")
+        return results
+
 
 # Singleton instance
 _pinecone_service: Optional[PineconeService] = None

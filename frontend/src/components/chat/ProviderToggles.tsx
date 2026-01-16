@@ -2,20 +2,29 @@ import { useProviderStore } from '../../stores/providerStore';
 import { ProviderName } from '../../types';
 import './ProviderToggles.css';
 
-export function ProviderToggles() {
+interface ProviderTogglesProps {
+  selectedProvider?: ProviderName;
+  onProviderChange?: (name: ProviderName) => void;
+  compact?: boolean;
+}
+
+export function ProviderToggles({ selectedProvider, onProviderChange, compact = false }: ProviderTogglesProps = {}) {
   const { providers, activeProvider, setActiveProvider } = useProviderStore();
 
+  const currentProvider = selectedProvider || activeProvider;
+  const handleProviderChange = onProviderChange || setActiveProvider;
+
   return (
-    <div className="provider-toggles">
+    <div className={`provider-toggles ${compact ? 'compact' : ''}`}>
       {providers.map((provider) => {
-        const isActive = provider.name === activeProvider;
+        const isActive = provider.name === currentProvider;
         const isConfigured = provider.configured;
 
         return (
           <button
             key={provider.name}
             className={`provider-toggle ${provider.name} ${isActive ? 'active' : ''} ${!isConfigured ? 'disabled' : ''}`}
-            onClick={() => setActiveProvider(provider.name)}
+            onClick={() => handleProviderChange(provider.name)}
             disabled={!isConfigured}
             title={
               isConfigured

@@ -137,6 +137,31 @@ class ApiService {
     });
   }
 
+  async getDocumentContent(id: string): Promise<any> {
+    return this.request(`/api/documents/${id}/content`);
+  }
+
+  async getDocumentChunks(id: string): Promise<{ chunks: any[] }> {
+    return this.request(`/api/documents/${id}/chunks`);
+  }
+
+  async chatWithDocument(id: string, message: string, provider: string): Promise<Response> {
+    const response = await fetch(`${this.baseUrl}/api/documents/${id}/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ message, provider }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Chat failed' }));
+      throw new Error(error.detail || `HTTP error ${response.status}`);
+    }
+
+    return response;
+  }
+
   // Chat stream URL builder
   getStreamUrl(): string {
     return `${this.baseUrl}/api/chat/stream`;

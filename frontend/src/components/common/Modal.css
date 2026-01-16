@@ -41,6 +41,13 @@
   max-width: 640px;
 }
 
+.modal-container.modal-xl {
+  max-width: 90vw;
+  width: 1200px;
+  max-height: 90vh;
+  height: 800px;
+}
+
 /* Modal Header */
 .modal-header {
   display: flex;
@@ -74,7 +81,12 @@
 
 /* Modal Content */
 .modal-content {
-  padding: 24px;
+  padding: 16px;
+}
+
+.modal-container.modal-xl .modal-content {
+  padding: 8px;
+  height: calc(100% - 65px); /* Subtract header height */
 }
 
 /* Animations */

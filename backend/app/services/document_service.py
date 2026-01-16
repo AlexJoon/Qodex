@@ -1,6 +1,7 @@
 from typing import List, Optional, Dict, Any
 import tiktoken
 import uuid
+import os
 from pypdf import PdfReader
 from docx import Document as DocxDocument
 import io
@@ -19,6 +20,8 @@ class DocumentService:
         self.chunk_overlap = 50
         # In-memory document store (replace with DB in production)
         self._documents: Dict[str, Document] = {}
+        # Path to placeholder PDF
+        self.placeholder_pdf_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "..", "Financing-the-Clean-Energy-Economy.pdf")
 
     def _count_tokens(self, text: str) -> int:
         """Count tokens in text."""
@@ -165,9 +168,37 @@ class DocumentService:
         del self._documents[document_id]
         return True
 
-    def get_document(self, document_id: str) -> Optional[Document]:
+    async def get_document(self, document_id: str) -> Optional[Document]:
         """Get a document by ID."""
-        return self._documents.get(document_id)
+        document = self._documents.get(document_id)
+        
+        if document:
+            return document
+        
+        # If not in memory, get chunks from Pinecone and reconstruct
+        try:
+            chunks = await self.pinecone.get_chunks_by_document(document_id)
+            if chunks:
+                # Extract metadata from first chunk
+                first_chunk = chunks[0]
+                metadata = first_chunk.get("metadata", {})
+                
+                # Use actual chunk IDs from Pinecone instead of trying to match
+                actual_chunk_ids = [chunk["id"] for chunk in chunks]
+                
+                # Reconstruct document
+                return Document(
+                    id=document_id,
+                    filename=metadata.get("filename", "Unknown Document"),
+                    content_type=metadata.get("content_type", "application/pdf"),
+                    file_size=metadata.get("file_size", 0),
+                    chunk_count=len(chunks),
+                    chunk_ids=actual_chunk_ids
+                )
+        except Exception as e:
+            print(f"Error reconstructing document from Pinecone: {e}")
+        
+        return None
 
     def list_documents(self) -> List[Document]:
         """List all documents."""
@@ -208,10 +239,102 @@ class DocumentService:
 
         return "\n\n---\n\n".join(context_parts)
 
+    async def get_document_content(self, document_id: str) -> Dict[str, Any]:
+        """
+        Get full document content for preview.
+        
+        Args:
+            document_id: ID of document
+            
+        Returns:
+            Dictionary with document metadata and full content
+        """
+        document = self._documents.get(document_id)
+        
+        if not document:
+            # Try to reconstruct from Pinecone
+            try:
+                chunks = await self.pinecone.get_chunks_by_document(document_id)
+                if chunks:
+                    # Extract metadata from first chunk
+                    first_chunk = chunks[0]
+                    metadata = first_chunk.get("metadata", {})
+                    
+                    # Reconstruct document
+                    document = Document(
+                        id=document_id,
+                        filename=metadata.get("filename", "Unknown Document"),
+                        content_type=metadata.get("content_type", "application/pdf"),
+                        file_size=metadata.get("file_size", 0),
+                        chunk_count=len(chunks),
+                        chunk_ids=[chunk.get("id") for chunk in chunks]
+                    )
+            except Exception as e:
+                raise ValueError(f"Document not found: {document_id}")
+        
+        # Get all chunks from Pinecone
+        chunks = await self.pinecone.get_chunks_by_document(document_id)
+        
+        # Reconstruct full content by concatenating chunks in order
+        full_content = ""
+        chunk_contents = []
+        
+        for chunk_id in document.chunk_ids:
+            chunk = next((c for c in chunks if c.get("id") == chunk_id), None)
+            if chunk and chunk.get("metadata", {}).get("content"):
+                content = chunk["metadata"]["content"]
+                chunk_contents.append({
+                    "id": chunk_id,
+                    "content": content,
+                    "chunk_index": chunk["metadata"].get("chunk_index", 0)
+                })
+                full_content += content + "\n\n"
+        
+        return {
+            "id": document.id,
+            "filename": document.filename,
+            "content_type": document.content_type,
+            "file_size": document.file_size,
+            "chunk_count": document.chunk_count,
+            "full_content": full_content.strip(),
+            "chunks": chunk_contents
+        }
+    
+    async def get_document_chunks(self, document_id: str) -> List[Dict[str, Any]]:
+        """
+        Get document chunks for preview.
+        
+        Args:
+            document_id: ID of the document
+            
+        Returns:
+            List of chunk data with content and metadata
+        """
+        print(f"DEBUG: get_document_chunks called with document_id: {document_id}")
+        document = self._documents.get(document_id)
+        if not document:
+            raise ValueError(f"Document not found: {document_id}")
+        
+        # Get all chunks from Pinecone
+        chunks = await self.pinecone.get_chunks_by_document(document_id)
+        print(f"DEBUG: Found {len(chunks)} chunks from Pinecone")
+        
+        # Sort chunks by chunk_index and return directly
+        sorted_chunks = []
+        for chunk in chunks:
+            if chunk.get("metadata"):
+                sorted_chunks.append({
+                    "id": chunk["id"],
+                    "chunk_index": chunk["metadata"].get("chunk_index", 0),
+                    "filename": chunk["metadata"].get("filename", document.filename)
+                })
+        
+        print(f"DEBUG: Returning {len(sorted_chunks)} sorted chunks")
+        return sorted_chunks
+
 
 # Singleton instance
 _document_service: Optional[DocumentService] = None
-
 
 def get_document_service() -> DocumentService:
     """Get the singleton DocumentService instance."""

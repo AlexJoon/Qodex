@@ -54,7 +54,10 @@ export function useSSE() {
         });
 
         for await (const event of stream) {
-          if (event.type === 'sources') {
+          if (event.type === 'discussion_title') {
+            // Update discussion title immediately during streaming
+            updateDiscussionTitle(event.discussion_id, event.title);
+          } else if (event.type === 'sources') {
             setStreamSources(event.sources);
           } else if (event.type === 'chunk') {
             appendToStream(event.content);
@@ -64,18 +67,6 @@ export function useSSE() {
             throw new Error(event.error);
           } else if (event.type === 'done') {
             finalizeStream(messageIdRef.current);
-
-            // Update discussion title in the store (backend may have updated it)
-            // This only updates metadata, NOT messages (chatStore is source of truth for messages)
-            if (targetDiscussionId) {
-              try {
-                const updatedDiscussion = await api.getDiscussion(targetDiscussionId);
-                updateDiscussionTitle(targetDiscussionId, updatedDiscussion.title);
-              } catch (error) {
-                console.error('Failed to update discussion title:', error);
-              }
-            }
-
             break;
           }
         }

@@ -83,8 +83,10 @@ async def stream_chat(request: ChatRequest):
     discussion.add_message(user_message)
 
     # Auto-generate title from first user message if still default
+    title_updated = False
     if discussion.title == "New Chat":
         discussion.title = request.message[:50] + ("..." if len(request.message) > 50 else "")
+        title_updated = True
 
     # Start RAG search in parallel with provider setup (non-blocking)
     doc_service = get_document_service()
@@ -158,7 +160,16 @@ async def stream_chat(request: ChatRequest):
         full_response = []
         start_time = time.time()
 
-        # Emit sources event first (if any)
+        # Emit title update event first if title was updated
+        if title_updated:
+            title_data = {
+                "type": "discussion_title",
+                "discussion_id": request.discussion_id,
+                "title": discussion.title
+            }
+            yield f"data: {json.dumps(title_data)}\n\n"
+
+        # Emit sources event (if any)
         if sources:
             sources_data = {
                 "type": "sources",

@@ -3,7 +3,7 @@ import { DocumentPreviewPane } from './DocumentPreviewPane';
 import { DocumentChat } from './DocumentChat';
 import { useDocumentPreviewStore } from '../../stores/documentPreviewStore';
 import { useProviderStore } from '../../stores/providerStore';
-import { FileText, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import './DocumentPreviewModal.css';
 
 export function DocumentPreviewModal() {
@@ -26,9 +26,9 @@ export function DocumentPreviewModal() {
   };
 
   return (
-    <Modal 
-      isOpen={!!previewDocument} 
-      onClose={handleClose} 
+    <Modal
+      isOpen={!!previewDocument}
+      onClose={handleClose}
       title={previewDocument.filename}
       size="xl"
     >
@@ -41,7 +41,7 @@ export function DocumentPreviewModal() {
             </button>
           </div>
         )}
-        
+
         {isLoading ? (
           <div className="document-preview-loading">
             <div className="loading-spinner"></div>
@@ -49,14 +49,16 @@ export function DocumentPreviewModal() {
           </div>
         ) : (
           <div className="document-preview-content">
-            <div className="document-preview-pane">
-              <DocumentPreviewPane 
+            <div className="document-preview-left">
+              <DocumentPreviewPane
                 documentContent={documentContent}
               />
             </div>
-            
-            <div className="document-chat-pane">
-              <DocumentChat 
+
+            <div className="pane-divider" />
+
+            <div className="document-chat-right">
+              <DocumentChat
                 documentId={previewDocument.id}
                 provider={activeProvider}
               />

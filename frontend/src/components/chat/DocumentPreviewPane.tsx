@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
-import { Search, ChevronLeft, ChevronRight, FileText, ZoomIn, ZoomOut } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Search, FileText, ZoomIn, ZoomOut, Copy, Check } from 'lucide-react';
+import { FormattedContent } from './FormattedContent';
 import './DocumentPreviewPane.css';
 
 interface DocumentPreviewPaneProps {
@@ -8,14 +9,14 @@ interface DocumentPreviewPaneProps {
   onChunkClick?: (chunkId: string) => void;
 }
 
-export function DocumentPreviewPane({ 
-  documentContent, 
-  highlightedChunk, 
-  onChunkClick 
+export function DocumentPreviewPane({
+  documentContent,
+  highlightedChunk,
+  onChunkClick
 }: DocumentPreviewPaneProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(100);
+  const [copied, setCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   if (!documentContent) {
@@ -33,48 +34,22 @@ export function DocumentPreviewPane({
   const chunks = documentContent.chunks || [];
   const fullContent = documentContent.full_content || '';
 
-  // Highlight search terms
-  const highlightText = (text: string, term: string) => {
-    if (!term) return text;
-    
-    const regex = new RegExp(`(${term})`, 'gi');
-    const parts = text.split(regex);
-    
-    return parts.map((part, index) => 
-      regex.test(part) ? (
-        <mark key={index} className="search-highlight">{part}</mark>
-      ) : (
-        part
-      )
-    );
-  };
-
-  // Navigate chunks
-  const goToChunk = (index: number) => {
-    if (index >= 0 && index < chunks.length) {
-      setCurrentChunkIndex(index);
-      // Scroll to chunk
-      const chunkElement = document.getElementById(`chunk-${index}`);
-      if (chunkElement && contentRef.current) {
-        chunkElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }
-  };
-
-  const goToPreviousChunk = () => {
-    goToChunk(currentChunkIndex - 1);
-  };
-
-  const goToNextChunk = () => {
-    goToChunk(currentChunkIndex + 1);
-  };
-
   const handleZoomIn = () => {
     setZoomLevel(prev => Math.min(prev + 10, 200));
   };
 
   const handleZoomOut = () => {
     setZoomLevel(prev => Math.max(prev - 10, 50));
+  };
+
+  const handleCopyAll = async () => {
+    try {
+      await navigator.clipboard.writeText(fullContent);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -99,7 +74,7 @@ export function DocumentPreviewPane({
             <span className="document-chunks-count">{chunks.length} chunks</span>
           </div>
         </div>
-        
+
         <div className="document-controls">
           <div className="search-input-container">
             <Search size={16} className="search-icon" />
@@ -120,92 +95,34 @@ export function DocumentPreviewPane({
               <ZoomIn size={16} />
             </button>
           </div>
+          <button
+            onClick={handleCopyAll}
+            className="copy-all-btn"
+            title="Copy all content"
+          >
+            {copied ? <Check size={16} /> : <Copy size={16} />}
+            {copied ? 'Copied' : 'Copy'}
+          </button>
         </div>
       </div>
 
-      {/* Chunk Navigation */}
-      {chunks.length > 1 && (
-        <div className="chunk-navigation">
-          <div className="chunk-info">
-            <span className="chunk-current">Chunk {currentChunkIndex + 1}</span>
-            <span className="chunk-total">of {chunks.length}</span>
-          </div>
-          <div className="chunk-nav-buttons">
-            <button
-              onClick={goToPreviousChunk}
-              disabled={currentChunkIndex === 0}
-              className="chunk-nav-btn"
-              title="Previous chunk"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              onClick={goToNextChunk}
-              disabled={currentChunkIndex === chunks.length - 1}
-              className="chunk-nav-btn"
-              title="Next chunk"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Document Content */}
-      <div className="document-content" ref={contentRef} style={{ fontSize: `${zoomLevel}%` }}>
+      {/* Document Content - Continuous View */}
+      <div className="document-content" ref={contentRef}>
         {chunks.length > 0 ? (
-          <div className="document-chunks">
-            {chunks.map((chunk: any, index: number) => (
-              <div
-                key={chunk.id}
-                id={`chunk-${index}`}
-                className={`document-chunk ${
-                  highlightedChunk === chunk.id ? 'highlighted' : ''
-                } ${
-                  index === currentChunkIndex ? 'current-chunk' : ''
-                }`}
-                onClick={() => onChunkClick?.(chunk.id)}
-              >
-                <div className="chunk-header">
-                  <div className="chunk-number">
-                    <span>Chunk {index + 1}</span>
-                    {chunk.chunk_index !== undefined && (
-                      <span className="chunk-index">Index: {chunk.chunk_index}</span>
-                    )}
-                  </div>
-                  <div className="chunk-actions">
-                    <button 
-                      className="chunk-action-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        copyToClipboard(chunk.content);
-                      }}
-                      title="Copy chunk content"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </div>
-                <div className="chunk-content">
-                  {highlightText(chunk.content, searchTerm)}
-                </div>
-              </div>
-            ))}
+          <FormattedContent
+            chunks={chunks}
+            searchTerm={searchTerm}
+            zoomLevel={zoomLevel}
+            onChunkClick={onChunkClick}
+            highlightedChunk={highlightedChunk}
+          />
+        ) : fullContent ? (
+          <div className="document-full-content" style={{ fontSize: `${zoomLevel}%` }}>
+            <p>{fullContent}</p>
           </div>
         ) : (
-          <div className="document-full-content">
-            <div className="content-header">
-              <h4>Full Document Content</h4>
-              <button 
-                className="copy-btn"
-                onClick={() => navigator.clipboard.writeText(fullContent)}
-              >
-                Copy All
-              </button>
-            </div>
-            <div className="content-body">
-              {highlightText(fullContent, searchTerm)}
-            </div>
+          <div className="document-preview-empty">
+            <p>No content available</p>
           </div>
         )}
       </div>

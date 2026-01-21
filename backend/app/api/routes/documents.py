@@ -183,9 +183,9 @@ async def chat_with_document(document_id: str, request: DocumentChatRequest):
         temp_discussion_id = str(uuid.uuid4())
         
         # Import chat functionality
-        from app.routers.chat import ChatRequest
-        from app.services.ai_providers import ProviderRegistry
-        from app.config import get_settings
+        from app.api.routes.chat import ChatRequest
+        from app.providers import ProviderRegistry
+        from app.core.config import get_settings
         from app.models import Message, MessageRole
         
         # Get provider configuration

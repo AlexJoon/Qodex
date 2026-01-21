@@ -2,11 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from app.config import get_settings
-from app.routers import chat_router, discussions_router, documents_router
+from app.core.config import get_settings
+from app.api.routes import chat_router, discussions_router, documents_router
 
 # Import providers to register them
-from app.services.ai_providers import (
+from app.providers import (
     OpenAIProvider,
     MistralProvider,
     ClaudeProvider,

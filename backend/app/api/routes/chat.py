@@ -9,12 +9,12 @@ import json
 import asyncio
 import logging
 
-from app.config import get_settings
+from app.core.config import get_settings
 from app.models import Message, MessageRole, DocumentSource
-from app.services.ai_providers import ProviderRegistry
+from app.providers import ProviderRegistry
 from app.services.document_service import get_document_service
 from app.utils.streaming import create_sse_response, format_sse_event
-from app.routers.discussions import get_discussions_storage
+from app.api.routes.discussions import get_discussions_storage
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 logger = logging.getLogger(__name__)

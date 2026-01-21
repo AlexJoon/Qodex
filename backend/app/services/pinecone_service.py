@@ -3,7 +3,7 @@ from pinecone import Pinecone, ServerlessSpec
 from openai import AsyncOpenAI
 import asyncio
 
-from app.config import get_settings
+from app.core.config import get_settings
 
 
 class PineconeService:

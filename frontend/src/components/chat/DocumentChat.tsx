@@ -48,18 +48,12 @@ export function DocumentChat({ documentId, provider }: DocumentChatProps) {
   return (
     <div className="document-chat">
       <div className="document-chat-header">
-        <div className="chat-header-title">
-          <MessageSquare size={18} />
-          <span>Chat with Document</span>
-        </div>
-        
-        <div className="chat-header-controls">
-          <ProviderToggles 
-            selectedProvider={activeProvider}
-            onProviderChange={setActiveProvider}
-            compact={true}
-          />
-          <button 
+        <div className="chat-header-top">
+          <div className="chat-header-title">
+            <MessageSquare size={18} />
+            <span>Chat with Document</span>
+          </div>
+          <button
             onClick={clearDocumentChat}
             className="clear-chat-btn"
             title="Clear chat"
@@ -67,12 +61,24 @@ export function DocumentChat({ documentId, provider }: DocumentChatProps) {
             Clear
           </button>
         </div>
+
+        <div className="chat-header-controls">
+          <div className="chat-provider-row">
+            <ProviderToggles
+              selectedProvider={activeProvider}
+              onProviderChange={setActiveProvider}
+              compact={true}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="document-chat-messages">
         {documentChatMessages.length === 0 && !isDocumentChatStreaming && (
           <div className="chat-welcome">
-            <Bot size={24} className="welcome-icon" />
+            <div className="welcome-icon">
+              <Bot size={24} />
+            </div>
             <h4>Ask about this document</h4>
             <p>
               I can help you understand the content, answer questions, and find specific information in this document.

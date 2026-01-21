@@ -42,10 +42,10 @@
 }
 
 .modal-container.modal-xl {
-  max-width: 90vw;
-  width: 1200px;
+  max-width: 95vw;
+  width: 1600px;
   max-height: 90vh;
-  height: 800px;
+  height: 850px;
 }
 
 /* Modal Header */

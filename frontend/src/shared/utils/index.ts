@@ -1,0 +1,1 @@
+export { remarkCitations } from './remarkCitations';

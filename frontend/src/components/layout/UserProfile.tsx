@@ -45,7 +45,7 @@ export function UserProfile({ isCollapsed }: UserProfileProps) {
                 User
               </div>
               <div className="text-xs text-text-tertiary">
-                Free plan
+                Educator
               </div>
             </div>
           </button>

@@ -253,7 +253,7 @@ export function Sidebar() {
           {!isCollapsed && (
             <div className="sidebar-user-info">
               <span className="sidebar-user-name">User</span>
-              <span className="sidebar-user-plan">Free plan</span>
+              <span className="sidebar-user-plan">Educator</span>
             </div>
           )}
           {!isCollapsed && (

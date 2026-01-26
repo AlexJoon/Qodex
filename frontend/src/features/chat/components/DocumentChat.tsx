@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, MessageSquare, Bot, User } from 'lucide-react';
+import { Send, MessageSquare, Bot, User, ArrowUpRight } from 'lucide-react';
 import { useDocumentPreviewStore } from '@/features/documents';
 import { useProviderStore } from '@/features/providers';
 import { ProviderToggles } from '@/features/providers';
@@ -51,7 +51,7 @@ export function DocumentChat({ documentId, provider }: DocumentChatProps) {
         <div className="chat-header-top">
           <div className="chat-header-title">
             <MessageSquare size={18} />
-            <span>Chat with Document</span>
+            <span>Qodex Dive</span>
           </div>
           <button
             onClick={clearDocumentChat}
@@ -76,31 +76,42 @@ export function DocumentChat({ documentId, provider }: DocumentChatProps) {
       <div className="document-chat-messages">
         {documentChatMessages.length === 0 && !isDocumentChatStreaming && (
           <div className="chat-welcome">
-            <div className="welcome-icon">
-              <Bot size={24} />
-            </div>
-            <h4>Ask about this document</h4>
-            <p>
-              I can help you understand the content, answer questions, and find specific information in this document.
-            </p>
+            <h4>Dive Deeper</h4>
             <div className="welcome-suggestions">
-              <button 
+              <button
                 onClick={() => setInputValue("What is this document about?")}
                 className="suggestion-btn"
               >
-                What is this document about?
+                <span>What is this document about?</span>
+                <ArrowUpRight size={14} />
               </button>
-              <button 
+              <button
                 onClick={() => setInputValue("Summarize the key points")}
                 className="suggestion-btn"
               >
-                Summarize the key points
+                <span>Summarize the key points</span>
+                <ArrowUpRight size={14} />
               </button>
-              <button 
+              <button
                 onClick={() => setInputValue("What are the main findings?")}
                 className="suggestion-btn"
               >
-                What are the main findings?
+                <span>What are the main findings?</span>
+                <ArrowUpRight size={14} />
+              </button>
+              <button
+                onClick={() => setInputValue("Explain this in simpler terms")}
+                className="suggestion-btn"
+              >
+                <span>Explain this in simpler terms</span>
+                <ArrowUpRight size={14} />
+              </button>
+              <button
+                onClick={() => setInputValue("What questions could be asked about this?")}
+                className="suggestion-btn"
+              >
+                <span>What questions could be asked about this?</span>
+                <ArrowUpRight size={14} />
               </button>
             </div>
           </div>

@@ -1,60 +1,60 @@
 import { SampleQuestion } from '../types/sampleQuestions';
 
-// Sample questions for first-time users with nested sub-questions
-// Contextually related to prompt starter themes
+// Sample questions for educators with nested sub-questions
+// Contextually related to climate education and syllabus design
 export const SAMPLE_QUESTIONS: SampleQuestion[] = [
   {
-    main: "Summarize key findings from my research documents",
+    main: "Summarize key themes across my syllabi",
     subQuestions: [
-      { text: "Create an executive summary of main points" },
-      { text: "Extract key statistics and data" },
-      { text: "Identify recurring themes" },
-      { text: "Compare findings across documents" }
+      { text: "What topics appear most frequently?" },
+      { text: "Compare learning objectives across courses" },
+      { text: "Identify gaps in topic coverage" },
+      { text: "Extract common reading assignments" }
     ]
   },
   {
-    main: "Help me analyze data patterns and trends",
+    main: "Help me design a lesson plan on climate topics",
     subQuestions: [
-      { text: "Identify correlations in the data" },
-      { text: "Spot anomalies and outliers" },
-      { text: "Predict future trends" },
-      { text: "Compare time-series data" }
+      { text: "Create learning objectives for carbon markets" },
+      { text: "Suggest classroom activities for climate adaptation" },
+      { text: "Design a case study discussion on renewable energy" },
+      { text: "Build an assessment rubric for sustainability projects" }
     ]
   },
   {
-    main: "Explain complex scientific concepts in simple terms",
+    main: "Find case studies on sustainable finance",
     subQuestions: [
-      { text: "Break down technical jargon" },
-      { text: "Use analogies and examples" },
-      { text: "Create a step-by-step explanation" },
-      { text: "Highlight key takeaways" }
+      { text: "Real-world examples of green bond issuance" },
+      { text: "ESG integration case studies for class" },
+      { text: "Climate risk assessment scenarios" },
+      { text: "Stakeholder analysis for energy transition" }
     ]
   },
   {
-    main: "Review and provide feedback on my draft",
+    main: "Generate assessment questions from my documents",
     subQuestions: [
-      { text: "Check grammar and clarity" },
-      { text: "Improve structure and flow" },
-      { text: "Strengthen arguments" },
-      { text: "Suggest style improvements" }
+      { text: "Create recall and comprehension questions" },
+      { text: "Design analytical essay prompts" },
+      { text: "Build a quiz on climate policy frameworks" },
+      { text: "Generate discussion questions for seminars" }
     ]
   },
   {
-    main: "Generate ideas for my creative project",
+    main: "Explain a complex climate concept for students",
     subQuestions: [
-      { text: "Brainstorm unique concepts" },
-      { text: "Explore different approaches" },
-      { text: "Combine existing ideas creatively" },
-      { text: "Identify inspiration sources" }
+      { text: "Break down carbon pricing mechanisms" },
+      { text: "Simplify climate modeling approaches" },
+      { text: "Explain the Paris Agreement framework" },
+      { text: "Describe scope 1, 2, and 3 emissions" }
     ]
   },
   {
-    main: "Answer questions about my uploaded materials",
+    main: "Compare approaches across my course materials",
     subQuestions: [
-      { text: "Extract specific information" },
-      { text: "Clarify confusing sections" },
-      { text: "Connect related concepts" },
-      { text: "Summarize key sections" }
+      { text: "How do different syllabi teach climate risk?" },
+      { text: "Compare pedagogical methods used" },
+      { text: "Contrast quantitative vs. qualitative approaches" },
+      { text: "What frameworks are referenced most?" }
     ]
   }
 ];

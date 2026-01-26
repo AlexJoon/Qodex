@@ -222,7 +222,7 @@ async def chat_with_document(document_id: str, request: DocumentChatRequest):
         )
         
         # Format context with document content
-        context = f"Document: {document_content['filename']}\n\n{document_content['content']}"
+        context = f"Document: {document_content['filename']}\n\n{document_content['full_content']}"
         
         # Stream response
         async def generate_response():

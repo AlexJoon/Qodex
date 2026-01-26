@@ -3,8 +3,8 @@
   background-color: #ffffff;
   border-radius: 0.5rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
-  padding: 2rem 2.5rem;
-  line-height: 1.75;
+  padding: 2.5rem 3rem;
+  line-height: 1.8;
   color: #1a1a1a;
   font-family: 'Georgia', 'Times New Roman', serif;
   font-size: 0.95rem;
@@ -34,26 +34,51 @@
   background-color: rgba(0, 0, 0, 0.015);
 }
 
-/* Headings */
-.content-heading {
+/* Heading Hierarchy */
+.content-heading-1 {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 2rem 0 1rem 0;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid #1e293b;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+.content-heading-2 {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 1.15rem;
   font-weight: 600;
   color: #111827;
   margin: 1.75rem 0 0.75rem 0;
-  padding-bottom: 0.5rem;
+  padding-bottom: 0.4rem;
   border-bottom: 1px solid #e5e7eb;
   line-height: 1.4;
   letter-spacing: -0.01em;
+  text-transform: none;
 }
 
-.content-block:first-child .content-heading {
+.content-heading-3 {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 1.5rem 0 0.5rem 0;
+  line-height: 1.4;
+  letter-spacing: -0.005em;
+}
+
+.content-block:first-child .content-heading-1,
+.content-block:first-child .content-heading-2,
+.content-block:first-child .content-heading-3 {
   margin-top: 0;
 }
 
 /* Paragraphs */
 .content-paragraph {
-  margin: 0 0 1.25rem 0;
+  margin: 0 0 1rem 0;
   text-align: justify;
   hyphens: auto;
   text-indent: 0;
@@ -63,21 +88,66 @@
   margin-bottom: 0;
 }
 
-/* Lists */
+/* Unordered Lists */
 .content-list {
-  margin: 1rem 0;
+  margin: 0.75rem 0 1rem 0;
   padding-left: 1.75rem;
   list-style-type: disc;
 }
 
+/* Ordered Lists */
+.content-ordered-list {
+  margin: 0.75rem 0 1rem 0;
+  padding-left: 1.75rem;
+  list-style-type: decimal;
+}
+
 .content-list-item {
-  margin: 0.5rem 0;
-  line-height: 1.6;
+  margin: 0.4rem 0;
+  line-height: 1.65;
   padding-left: 0.25rem;
 }
 
 .content-list-item::marker {
   color: #6b7280;
+}
+
+.content-ordered-list .content-list-item::marker {
+  color: #374151;
+  font-weight: 500;
+}
+
+/* Divider / Horizontal Rule */
+.content-divider {
+  border: none;
+  border-top: 1px solid #d1d5db;
+  margin: 1.5rem 0;
+}
+
+/* Inline code */
+.content-inline-code {
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  background-color: #f3f4f6;
+  color: #be185d;
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+  border: 1px solid #e5e7eb;
+}
+
+/* Links */
+.content-link {
+  color: #2563eb;
+  text-decoration: underline;
+  text-decoration-color: #93c5fd;
+  text-underline-offset: 2px;
+  word-break: break-all;
+  transition: color 0.15s ease;
+}
+
+.content-link:hover {
+  color: #1d4ed8;
+  text-decoration-color: #2563eb;
 }
 
 /* Search highlighting */
@@ -88,16 +158,6 @@
   border-radius: 2px;
   font-weight: 500;
   box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.3);
-}
-
-/* First letter styling for paragraphs after headings */
-.content-block--heading + .content-block--paragraph .content-paragraph:first-child::first-letter {
-  font-size: 1.5em;
-  font-weight: 600;
-  color: #374151;
-  float: left;
-  line-height: 1;
-  margin-right: 0.1em;
 }
 
 /* Responsive adjustments */
@@ -114,13 +174,21 @@
     font-size: 0.9rem;
   }
 
-  .content-heading {
+  .content-heading-1 {
+    font-size: 1.25rem;
+  }
+
+  .content-heading-2 {
     font-size: 1.1rem;
+  }
+
+  .content-heading-3 {
+    font-size: 1rem;
   }
 
   .content-paragraph {
     text-align: left;
-    margin-bottom: 1rem;
+    margin-bottom: 0.85rem;
   }
 }
 

@@ -77,22 +77,6 @@
   max-width: 180px;
 }
 
-.document-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.7rem;
-  color: var(--text-tertiary);
-}
-
-.document-size,
-.document-chunks-count {
-  background-color: #f3f4f6;
-  padding: 0.2rem 0.4rem;
-  border-radius: 0.25rem;
-  white-space: nowrap;
-}
-
 /* Controls Bar */
 .document-controls {
   display: flex;
@@ -297,7 +281,4 @@
     padding: 1.25rem;
   }
 
-  .document-meta {
-    display: none;
-  }
 }

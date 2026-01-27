@@ -52,14 +52,6 @@ export function DocumentPreviewPane({
     }
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
   return (
     <div className="document-preview-pane">
       {/* Document Header */}
@@ -68,10 +60,6 @@ export function DocumentPreviewPane({
           <div className="document-title-wrapper">
             <FileText size={20} className="document-icon" />
             <h3 className="document-title">{documentContent.filename}</h3>
-          </div>
-          <div className="document-meta">
-            <span className="document-size">{formatFileSize(documentContent.file_size || 0)}</span>
-            <span className="document-chunks-count">{chunks.length} chunks</span>
           </div>
         </div>
 

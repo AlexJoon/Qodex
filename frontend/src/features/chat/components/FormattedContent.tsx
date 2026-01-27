@@ -67,18 +67,52 @@ function preprocessContent(content: string): string {
   let text = content;
 
   // Split inline bullets: "text • item1 • item2" → separate lines
-  // Look for bullet chars preceded by content on the same line
   text = text.replace(/([^\n])(\s*[•●○]\s+)/g, '$1\n$2');
 
   // Split inline numbered items: "text 1. item 2. item" but only when preceded by
   // sentence-ending punctuation or at natural boundaries
   text = text.replace(/([.!?:;])\s+(\d+[.)]\s+[A-Z])/g, '$1\n$2');
 
-  // Split "Class N" patterns common in syllabi onto their own lines
-  text = text.replace(/([^\n])\s+(Class\s+\d+)/g, '$1\n$2');
+  // Split "Session N" / "Class N" / "Week N" / "Lecture N" / "Module N" patterns onto their own lines
+  text = text.replace(/([^\n])\s+((?:Session|Class|Week|Lecture|Module|Seminar|Topic|Part)\s+\d+)/gi, '$1\n$2');
+
+  // Split body text after Session/Week/Lecture headings with date parentheticals
+  // e.g. "Session 1: Course Overview (Tuesday, 21 January 2025) In this first class..."
+  // → heading line: "Session 1: Course Overview (Tuesday, 21 January 2025)"
+  // → body line: "In this first class..."
+  text = text.replace(/((?:Session|Class|Week|Lecture|Module|Seminar|Topic|Part)\s+\d+[^)\n]*\([^)]+\))\s+(?=[A-Z][a-z])/gi, '$1\n');
 
   // Split "UNIT" headers onto their own lines
   text = text.replace(/([^\n])\s+(UNIT\s+[A-Z]+)/g, '$1\n$2');
+
+  // Split ALL-CAPS section headers (2+ uppercase words) that run inline.
+  // Match: preceded by punctuation/digit, then 2+ consecutive ALL-CAPS words,
+  // followed by a mixed-case word (start of sentence) or end of string.
+  // Splits BOTH before the header AND after it (before the next sentence).
+  // e.g. "...text. ACADEMIC INTEGRITY STATEMENT The School..." → 3 lines
+  text = text.replace(/([.!?)\d])\s+((?:[A-Z][A-Z&,\-()/%\d]+)(?:\s+(?:[A-Z][A-Z&,\-()/%\d]+|OF|ON|THE|AND|FOR|IN|TO|A|AN))+)\s+(?=[A-Z][a-z])/g, '$1\n$2\n');
+  // Also handle ALL-CAPS at end of text (no following sentence)
+  text = text.replace(/([.!?)\d])\s+((?:[A-Z][A-Z&,\-()/%\d]+)(?:\s+(?:[A-Z][A-Z&,\-()/%\d]+|OF|ON|THE|AND|FOR|IN|TO|A|AN))+)\s*$/g, '$1\n$2');
+
+  // Also catch ALL-CAPS headers preceded by any character (not just punctuation)
+  // when there are 3+ uppercase words (strong signal it's a header)
+  text = text.replace(/([^\n])\s+((?:[A-Z]{2,})(?:\s+(?:[A-Z]{2,}|OF|ON|THE|AND|FOR|IN|TO|A|AN)){2,})\s+(?=[A-Z][a-z])/g, '$1\n$2\n');
+  text = text.replace(/([^\n])\s+((?:[A-Z]{2,})(?:\s+(?:[A-Z]{2,}|OF|ON|THE|AND|FOR|IN|TO|A|AN)){2,})\s*$/g, '$1\n$2');
+
+  // Split "Required readings" / "Additional readings" etc. onto own lines
+  text = text.replace(/([^\n])\s+((?:Required|Additional|Recommended|Suggested|Further|Optional)\s+(?:readings?|texts?|materials?|resources?))/gi, '$1\n$2');
+
+  // Split "Grading Rubric" / "Grading Criteria" etc. onto own lines
+  text = text.replace(/([^\n])\s+(Grading\s+(?:rubric|criteria|breakdown|policy|scheme))/gi, '$1\n$2');
+
+  // Split standalone "Readings" heading onto its own line (after punctuation or at natural boundary)
+  text = text.replace(/([.!?:;])\s+(Readings?)\s+/gi, '$1\n$2\n');
+
+  // Split assignment headers: "INDIVIDUAL ASSIGNMENT", "GROUP ASSIGNMENT", etc.
+  text = text.replace(/([^\n])\s+((?:INDIVIDUAL|GROUP|FINAL|MIDTERM|COURSE)\s+(?:ASSIGNMENT|PROJECT|EXAM|PAPER|PLAN|EVALUATION))/g, '$1\n$2');
+
+  // Split dash-prefixed bullet items that run inline
+  text = text.replace(/([^\n-])\s+(- [A-Za-z])/g, '$1\n$2');
 
   // Normalize multiple spaces to single
   text = text.replace(/[ \t]{2,}/g, ' ');
@@ -101,18 +135,40 @@ function classifyLine(line: string): ParsedLine {
   }
 
   // ALL-CAPS lines as section headings (e.g. "COURSE OVERVIEW", "BACKGROUND")
-  if (/^[A-Z][A-Z\s:&,\-]{3,}$/.test(trimmed) && trimmed.length < 80 && trimmed.length > 3) {
+  // Allow parentheses, digits, %, / for patterns like "INDIVIDUAL ASSIGNMENT (40%)"
+  if (/^[A-Z][A-Z\s:&,\-()/%\d]{3,}$/.test(trimmed) && trimmed.length < 100 && trimmed.length > 3) {
+    return { type: 'h2', text: trimmed };
+  }
+
+  // "Session N:" / "Class N:" / "Week N:" / "Lecture N:" / "Module N:" patterns in syllabi
+  if (/^(?:Session|Class|Week|Lecture|Module|Seminar|Topic|Part)\s+\d+/i.test(trimmed) && trimmed.length < 150) {
     return { type: 'h2', text: trimmed };
   }
 
   // Short title-case or mixed-case lines that look like section titles
   // e.g. "Course Description and Learning Objectives:" or "Required Readings:"
-  if (/^[A-Z][A-Za-z\s,&\-]+:\s*$/.test(trimmed) && trimmed.length < 80) {
-    return { type: 'h3', text: trimmed.replace(/:$/, '') };
+  // Allow lowercase words after first capital (e.g. "Required readings")
+  if (/^[A-Z][A-Za-z\s,&\-']+:\s*$/.test(trimmed) && trimmed.length < 80) {
+    return { type: 'h3', text: trimmed.replace(/:\s*$/, '') };
   }
 
-  // "Class N ... Topic" patterns in syllabi
-  if (/^Class\s+\d+/.test(trimmed) && trimmed.length < 120) {
+  // "Required readings" / "Additional readings" etc. (without trailing colon)
+  if (/^(?:Required|Additional|Recommended|Suggested|Further|Optional)\s+(?:readings?|texts?|materials?|resources?)\s*$/i.test(trimmed)) {
+    return { type: 'h3', text: trimmed };
+  }
+
+  // Standalone "Readings" as heading
+  if (/^Readings?\s*$/i.test(trimmed)) {
+    return { type: 'h3', text: trimmed };
+  }
+
+  // "Grading rubric" / "Grading Rubric" as heading
+  if (/^Grading\s+(?:rubric|criteria|breakdown|policy|scheme)\s*$/i.test(trimmed)) {
+    return { type: 'h3', text: trimmed };
+  }
+
+  // "Brief description" / "Course Objectives" / "Course Plan" short titles (no colon)
+  if (/^(?:Brief|Course|Academic|Disability|Policy|Method|Recitation)\s+[A-Za-z\s&]+$/i.test(trimmed) && trimmed.length < 60) {
     return { type: 'h3', text: trimmed };
   }
 
@@ -133,6 +189,9 @@ function classifyLine(line: string): ParsedLine {
   if (/^\d+[.)]\s+/.test(trimmed)) {
     return { type: 'numbered', text: trimmed.replace(/^\d+[.)]\s+/, '') };
   }
+
+  // Grade labels: "A:", "B+:", "B-/C:" at start of line — treat as bold paragraph start, not heading
+  // (handled by inline formatting, keep as paragraph)
 
   return { type: 'paragraph', text: trimmed };
 }
@@ -248,8 +307,8 @@ function parseChunkContent(content: string, chunkId: string, searchTerm: string,
 
 function renderInlineFormatting(text: string, searchTerm: string, keyPrefix: string): React.ReactNode {
   const parts: React.ReactNode[] = [];
-  // Match bold, italic, inline code, and URLs
-  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|(https?:\/\/[^\s),]+))/g;
+  // Match bold, italic, inline code, URLs, and grade labels at line start (e.g. "A:", "B+:", "B-/C:")
+  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|(https?:\/\/[^\s),]+)|^((?:[A-D][+-]?(?:\/[A-D][+-]?)?):))/gm;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   let i = 0;
@@ -287,6 +346,13 @@ function renderInlineFormatting(text: string, searchTerm: string, keyPrefix: str
         <a key={`${keyPrefix}-a-${i++}`} href={match[5]} target="_blank" rel="noopener noreferrer" className="content-link">
           {applySearchHighlight(match[5], searchTerm, `${keyPrefix}-as-${i}`)}
         </a>
+      );
+    } else if (match[6]) {
+      // Grade label (e.g. "A:", "B+:", "B-/C:") - render as bold
+      parts.push(
+        <strong key={`${keyPrefix}-gl-${i++}`}>
+          {applySearchHighlight(match[6], searchTerm, `${keyPrefix}-gls-${i}`)}
+        </strong>
       );
     }
 

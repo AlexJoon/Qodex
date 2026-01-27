@@ -21,13 +21,25 @@
   padding: 0.25rem 0;
 }
 
+.content-block + .content-block {
+  margin-top: 0.5rem;
+}
+
 .content-block--highlighted {
-  background-color: rgba(59, 130, 246, 0.08);
+  background-color: rgba(251, 191, 36, 0.12);
   margin-left: -0.5rem;
   margin-right: -0.5rem;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
-  border-left: 3px solid #3b82f6;
+  padding: 0.5rem;
+  animation: chunk-highlight-pulse 1.5s ease-out;
+}
+
+@keyframes chunk-highlight-pulse {
+  0% {
+    background-color: rgba(251, 191, 36, 0.3);
+  }
+  100% {
+    background-color: rgba(251, 191, 36, 0.12);
+  }
 }
 
 .content-block:hover {
@@ -204,7 +216,7 @@
 
   .content-block--highlighted {
     background-color: transparent;
-    border-left: 2px solid #000;
+    font-weight: 500;
   }
 
   .search-highlight {

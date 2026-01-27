@@ -162,14 +162,14 @@ export function Sidebar() {
           <SquarePen size={18} />
           {!isCollapsed && <span>New Chat</span>}
         </button>
-        <button className="sidebar-nav-link">
+        <a href="https://openclimatecurriculum.org/explore/" target="_blank" rel="noopener noreferrer" className="sidebar-nav-link">
           <Compass size={18} />
           {!isCollapsed && <span>Explore</span>}
-        </button>
-        <button className="sidebar-nav-link">
+        </a>
+        <a href="https://openclimatecurriculum.org/educators/" target="_blank" rel="noopener noreferrer" className="sidebar-nav-link">
           <GraduationCap size={18} />
           {!isCollapsed && <span>Educators</span>}
-        </button>
+        </a>
         <button className="sidebar-nav-link" onClick={() => setShowContactModal(true)}>
           <Mail size={18} />
           {!isCollapsed && <span>Contact</span>}

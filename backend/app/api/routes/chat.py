@@ -123,7 +123,7 @@ async def stream_chat(request: ChatRequest):
         search_results = await rag_task
 
         # Single-pass processing: build sources and context together with citation numbers
-        seen_docs = set()
+        # Each chunk gets its own citation so users can highlight the exact chunk in preview
         context_parts = []
         citation_number = 1
 
@@ -133,23 +133,23 @@ async def stream_chat(request: ChatRequest):
 
             if metadata and score > 0.3:
                 doc_id = metadata.get("document_id", result["id"])
+                chunk_id = result.get("id")  # Pinecone chunk ID (e.g. "uuid_5")
                 filename = metadata.get("filename", "Unknown")
                 content = metadata.get("content", "")
 
                 # Add to context with citation number
                 context_parts.append(f"[Source {citation_number} - {filename}]:\n{content}")
 
-                # Add to sources (dedupe by document) with citation number
-                if doc_id not in seen_docs:
-                    seen_docs.add(doc_id)
-                    sources.append(DocumentSource(
-                        id=doc_id,
-                        filename=filename,
-                        score=round(score, 3),
-                        chunk_preview=content[:150] + "..." if len(content) > 150 else content,
-                        citation_number=citation_number
-                    ))
-                    citation_number += 1
+                # Each chunk is a separate source with its own citation number
+                sources.append(DocumentSource(
+                    id=doc_id,
+                    filename=filename,
+                    score=round(score, 3),
+                    chunk_preview=content[:150] + "..." if len(content) > 150 else content,
+                    citation_number=citation_number,
+                    chunk_id=chunk_id
+                ))
+                citation_number += 1
 
         if context_parts:
             context = "\n\n---\n\n".join(context_parts)

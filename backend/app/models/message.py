@@ -18,6 +18,7 @@ class DocumentSource(BaseModel):
     score: float
     chunk_preview: Optional[str] = None
     citation_number: Optional[int] = None  # Position in citation list for inline references
+    chunk_id: Optional[str] = None  # Pinecone chunk ID for highlight-on-click in document preview
 
 
 class MessageBase(BaseModel):

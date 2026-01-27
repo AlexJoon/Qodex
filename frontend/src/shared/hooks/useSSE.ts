@@ -12,7 +12,7 @@ export function useSSE() {
   const navigate = useNavigate();
   const messageIdRef = useRef<string>('');
 
-  const { addMessage, startStream, appendToStream, setStreamSources, setStreamSuggestedQuestions, finalizeStream, cancelStream } = useChatStore();
+  const { addMessage, startStream, appendToStream, setStreamSources, setStreamSuggestedQuestions, setStreamIntent, finalizeStream, cancelStream } = useChatStore();
   const { activeDiscussionId, updateDiscussionTitle } = useDiscussionStore();
   const { activeProvider } = useProviderStore();
   const { selectedDocumentIds } = useDocumentStore();
@@ -59,6 +59,8 @@ export function useSSE() {
             updateDiscussionTitle(event.discussion_id, event.title);
           } else if (event.type === 'sources') {
             setStreamSources(event.sources);
+          } else if (event.type === 'intent') {
+            setStreamIntent(event.intent, event.label);
           } else if (event.type === 'chunk') {
             appendToStream(event.content);
           } else if (event.type === 'suggested_questions') {
@@ -85,6 +87,7 @@ export function useSSE() {
       appendToStream,
       setStreamSources,
       setStreamSuggestedQuestions,
+      setStreamIntent,
       finalizeStream,
       cancelStream,
       updateDiscussionTitle,

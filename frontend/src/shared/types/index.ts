@@ -21,6 +21,7 @@ export interface Message {
   sources?: DocumentSource[];
   citations?: Record<number, string>;  // Map citation numbers to document IDs
   suggested_questions?: string[];  // AI-generated follow-up questions
+  intent?: string;  // Detected intent: "summarize", "case_study", etc.
 }
 
 // Discussion types
@@ -116,7 +117,13 @@ export interface SSEDiscussionTitleEvent {
   title: string;
 }
 
-export type SSEEvent = SSEChunkEvent | SSESourcesEvent | SSESuggestedQuestionsEvent | SSEDiscussionTitleEvent | SSEDoneEvent | SSEErrorEvent;
+export interface SSEIntentEvent {
+  type: 'intent';
+  intent: string;
+  label: string;
+}
+
+export type SSEEvent = SSEChunkEvent | SSESourcesEvent | SSESuggestedQuestionsEvent | SSEDiscussionTitleEvent | SSEIntentEvent | SSEDoneEvent | SSEErrorEvent;
 
 // API Response types
 export interface ApiError {

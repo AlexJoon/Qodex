@@ -142,6 +142,39 @@ const providerNames: Record<string, string> = {
   cohere: 'Cohere',
 };
 
+const intentLabels: Record<string, string> = {
+  summarize: 'Summary',
+  explain: 'Explainer',
+  compare: 'Comparison',
+  case_study: 'Case Study',
+  generate_questions: 'Assessment',
+  critique: 'Critique',
+  methodology: 'Methodology',
+  lesson_plan: 'Lesson Plan',
+};
+
+const intentDescriptions: Record<string, string> = {
+  summarize: 'Structures output with key findings, methodology, implications, and limitations',
+  explain: 'Breaks down concepts with definitions, analogies, and progressive complexity',
+  compare: 'Analyzes dimensions of comparison with balanced, evidence-based synthesis',
+  case_study: 'Frames response as a case study with context, stakeholders, and discussion questions',
+  generate_questions: 'Creates assessment questions across Bloom\'s Taxonomy levels with answer keys',
+  critique: 'Provides balanced critical analysis of strengths, weaknesses, and alternative perspectives',
+  methodology: 'Reviews research design, data sources, analytical approach, and validity',
+  lesson_plan: 'Designs teaching resources with objectives, activities, prompts, and assessments',
+};
+
+const allIntents = [
+  { key: 'summarize', label: 'Summary', desc: 'Key findings & implications' },
+  { key: 'explain', label: 'Explainer', desc: 'Simplified breakdowns' },
+  { key: 'compare', label: 'Comparison', desc: 'Side-by-side analysis' },
+  { key: 'case_study', label: 'Case Study', desc: 'Real-world framing' },
+  { key: 'generate_questions', label: 'Assessment', desc: 'Quiz & exam questions' },
+  { key: 'critique', label: 'Critique', desc: 'Strengths & weaknesses' },
+  { key: 'methodology', label: 'Methodology', desc: 'Research design review' },
+  { key: 'lesson_plan', label: 'Lesson Plan', desc: 'Teaching resources' },
+];
+
 // Pre-define markdown components outside component to avoid recreation
 const markdownComponents = {
   code({ className, children, ...props }: { className?: string; children?: React.ReactNode }) {
@@ -290,6 +323,37 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming, onR
       <div className="message-content">
         <div className="message-header">
           <span className="message-author">{isUser ? 'You' : 'Qodex'}</span>
+          {!isUser && message.intent && message.intent !== 'general' && (
+            <span className="intent-chip-wrapper">
+              <span className={`message-intent ${message.intent}`}>
+                {intentLabels[message.intent] || message.intent}
+              </span>
+              <div className="intent-tooltip">
+                <div className="intent-tooltip-header">
+                  <span className={`intent-tooltip-active ${message.intent}`}>
+                    {intentLabels[message.intent] || message.intent}
+                  </span>
+                  <span className="intent-tooltip-desc">
+                    {intentDescriptions[message.intent] || ''}
+                  </span>
+                </div>
+                <div className="intent-tooltip-divider" />
+                <div className="intent-tooltip-label">All response modes</div>
+                <div className="intent-tooltip-list">
+                  {allIntents.map((item) => (
+                    <div
+                      key={item.key}
+                      className={`intent-tooltip-item ${item.key === message.intent ? 'active' : ''}`}
+                    >
+                      <span className={`intent-tooltip-dot ${item.key}`} />
+                      <span className="intent-tooltip-item-label">{item.label}</span>
+                      <span className="intent-tooltip-item-desc">{item.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </span>
+          )}
           {!isUser && message.provider && (
             <span className={`message-provider ${message.provider}`}>
               {providerNames[message.provider] || message.provider}

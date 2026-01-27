@@ -9,6 +9,7 @@ interface ChatState {
   currentStreamProvider: string | null;
   currentStreamSources: DocumentSource[];
   currentStreamSuggestedQuestions: string[];
+  currentStreamIntent: { intent: string; label: string } | null;
   error: string | null;
   isLoadingMessages: boolean;
 }
@@ -21,6 +22,7 @@ interface ChatActions {
   appendToStream: (chunk: string) => void;
   setStreamSources: (sources: DocumentSource[]) => void;
   setStreamSuggestedQuestions: (questions: string[]) => void;
+  setStreamIntent: (intent: string, label: string) => void;
   finalizeStream: (messageId: string) => void;
   cancelStream: () => void;
   clearMessages: () => void;
@@ -38,6 +40,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   currentStreamProvider: null,
   currentStreamSources: [],
   currentStreamSuggestedQuestions: [],
+  currentStreamIntent: null,
   error: null,
   isLoadingMessages: false,
 
@@ -74,6 +77,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       currentStreamProvider: provider,
       currentStreamSources: [],
       currentStreamSuggestedQuestions: [],
+      currentStreamIntent: null,
       error: null,
     });
   },
@@ -92,6 +96,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ currentStreamSuggestedQuestions: questions });
   },
 
+  setStreamIntent: (intent: string, label: string) => {
+    set({ currentStreamIntent: { intent, label } });
+  },
+
   finalizeStream: (messageId: string) => {
     const state = get();
 
@@ -103,6 +111,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       timestamp: new Date().toISOString(),
       sources: state.currentStreamSources.length > 0 ? state.currentStreamSources : undefined,
       suggested_questions: state.currentStreamSuggestedQuestions.length > 0 ? state.currentStreamSuggestedQuestions : undefined,
+      intent: state.currentStreamIntent?.intent || undefined,
     };
 
     set(state => ({
@@ -112,6 +121,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       currentStreamProvider: null,
       currentStreamSources: [],
       currentStreamSuggestedQuestions: [],
+      currentStreamIntent: null,
     }));
   },
 
@@ -122,6 +132,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       currentStreamProvider: null,
       currentStreamSources: [],
       currentStreamSuggestedQuestions: [],
+      currentStreamIntent: null,
     });
   },
 

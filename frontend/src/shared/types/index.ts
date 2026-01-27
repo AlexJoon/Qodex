@@ -8,6 +8,7 @@ export interface DocumentSource {
   score: number;
   chunk_preview?: string;
   citation_number?: number;  // Position in citation list for inline references
+  chunk_id?: string;  // Pinecone chunk ID for highlight-on-click in document preview
 }
 
 export interface Message {

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Search, FileText, ZoomIn, ZoomOut, Copy, Check } from 'lucide-react';
 import { FormattedContent } from './FormattedContent';
 import './DocumentPreviewPane.css';
@@ -18,6 +18,23 @@ export function DocumentPreviewPane({
   const [zoomLevel, setZoomLevel] = useState(100);
   const [copied, setCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to highlighted chunk when it changes
+  useEffect(() => {
+    if (!highlightedChunk || !contentRef.current) return;
+
+    // Small delay to ensure DOM has rendered the chunks
+    const timer = setTimeout(() => {
+      const el = contentRef.current?.querySelector(
+        `[data-chunk-id="${highlightedChunk}"]`
+      );
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [highlightedChunk]);
 
   if (!documentContent) {
     return (

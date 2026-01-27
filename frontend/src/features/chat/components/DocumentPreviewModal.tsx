@@ -10,6 +10,7 @@ export function DocumentPreviewModal() {
   const {
     previewDocument,
     documentContent,
+    highlightedChunk,
     isLoading,
     error,
     closeDocumentPreview,
@@ -52,6 +53,7 @@ export function DocumentPreviewModal() {
             <div className="document-preview-left">
               <DocumentPreviewPane
                 documentContent={documentContent}
+                highlightedChunk={highlightedChunk}
               />
             </div>
 

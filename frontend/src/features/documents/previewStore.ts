@@ -15,7 +15,7 @@ interface DocumentPreviewState {
 }
 
 interface DocumentPreviewActions {
-  openDocumentPreview: (documentId: string) => Promise<void>;
+  openDocumentPreview: (documentId: string, chunkId?: string) => Promise<void>;
   closeDocumentPreview: () => void;
   highlightChunk: (chunkId: string) => void;
   clearHighlight: () => void;
@@ -39,32 +39,32 @@ export const useDocumentPreviewStore = create<DocumentPreviewStore>((set, get) =
   documentChatContent: '',
 
   // Actions
-  openDocumentPreview: async (documentId: string) => {
+  openDocumentPreview: async (documentId: string, chunkId?: string) => {
     set({ isLoading: true, error: null });
-    
+
     try {
       // Get document metadata
       const document = await api.getDocument(documentId);
-      
+
       // Get document content and chunks in parallel
       const [content, chunks] = await Promise.all([
         api.getDocumentContent(documentId),
         api.getDocumentChunks(documentId)
       ]);
-      
+
       set({
         previewDocument: document,
         documentContent: content,
         documentChunks: chunks.chunks,
         isLoading: false,
-        highlightedChunk: null,
+        highlightedChunk: chunkId || null,
         documentChatMessages: [],
         documentChatContent: ''
       });
     } catch (error) {
-      set({ 
-        error: (error as Error).message, 
-        isLoading: false 
+      set({
+        error: (error as Error).message,
+        isLoading: false
       });
     }
   },

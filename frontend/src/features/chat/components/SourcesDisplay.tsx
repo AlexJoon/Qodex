@@ -24,10 +24,10 @@ export function SourcesDisplay({ sources, maxVisible = 3 }: SourcesDisplayProps)
     <div className="sources-display">
       <div className="sources-chips">
         {visibleSources.map((source) => (
-          <DocumentChip 
-            key={source.id} 
-            source={source} 
-            onClick={() => openDocumentPreview(source.document_id || source.id)}
+          <DocumentChip
+            key={source.chunk_id || `${source.id}-${source.citation_number}`}
+            source={source}
+            onClick={() => openDocumentPreview(source.document_id || source.id, source.chunk_id)}
           />
         ))}
 

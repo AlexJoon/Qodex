@@ -43,7 +43,7 @@ export function InlineCitation({ number, source }: InlineCitationProps) {
       onMouseLeave={() => setShowTooltip(false)}
       onClick={() => {
         const docId = source.document_id || source.id;
-        if (docId) openDocumentPreview(docId);
+        if (docId) openDocumentPreview(docId, source.chunk_id);
       }}
     >
       <sup className="inline-citation interactive">[{number}]</sup>

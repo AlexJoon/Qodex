@@ -84,16 +84,6 @@ export function Sidebar() {
     navigate('/chat', { state: { initialMessage: question } });
   };
 
-  const handleHome = () => {
-    navigate('/');
-    setShowSettingsMenu(false);
-  };
-
-  const handleProfile = () => {
-    console.log('Profile clicked');
-    setShowSettingsMenu(false);
-  };
-
   const handleLogout = () => {
     console.log('Logout clicked');
     setShowSettingsMenu(false);
@@ -269,14 +259,14 @@ export function Sidebar() {
               </button>
               {showSettingsMenu && (
                 <div className="sidebar-settings-menu">
-                  <button className="sidebar-settings-menu-item" onClick={handleHome}>
+                  <a href="https://openclimatecurriculum.org/" target="_blank" rel="noopener noreferrer" className="sidebar-settings-menu-item" onClick={() => setShowSettingsMenu(false)}>
                     <Home size={14} />
                     <span>Home</span>
-                  </button>
-                  <button className="sidebar-settings-menu-item" onClick={handleProfile}>
+                  </a>
+                  <a href="https://openclimatecurriculum.org/user" target="_blank" rel="noopener noreferrer" className="sidebar-settings-menu-item" onClick={() => setShowSettingsMenu(false)}>
                     <User size={14} />
                     <span>Profile</span>
-                  </button>
+                  </a>
                   <button className="sidebar-settings-menu-item delete" onClick={handleLogout}>
                     <LogOut size={14} />
                     <span>Logout</span>

@@ -23,6 +23,7 @@ class ClaudeProvider(BaseProvider):
         context: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: int = 4096,
+        intent_prompt: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         """Stream completion from Claude."""
         # Claude uses a different message format
@@ -43,6 +44,10 @@ class ClaudeProvider(BaseProvider):
                 "- Natural placement - citations should feel unobtrusive\n\n"
                 "Now provide an accurate and helpful response with inline citations."
             )
+
+            # Append intent-specific output structure if present
+            if intent_prompt:
+                system_message += intent_prompt
 
         for msg in messages:
             # Skip empty messages

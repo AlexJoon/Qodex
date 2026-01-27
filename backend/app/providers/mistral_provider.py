@@ -23,27 +23,34 @@ class MistralProvider(BaseProvider):
         context: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: int = 4096,
+        intent_prompt: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         """Stream completion from Mistral."""
         formatted_messages = []
 
         # Add system message with context if provided
         if context:
+            system_content = (
+                "Use the following context to help answer the user's question. "
+                "Each source is numbered. When you reference information from a specific source, "
+                "add a citation marker [N] immediately after the relevant statement, where N is the source number.\n\n"
+                "[Sources for reference]\n"
+                f"{context}\n\n"
+                "Guidelines:\n"
+                "- Add [N] citations inline where information comes from source N\n"
+                "- Multiple sources can be cited together like [1][2]\n"
+                "- Be precise - cite at the claim level, not just at the end of paragraphs\n"
+                "- Natural placement - citations should feel unobtrusive\n\n"
+                "Now provide an accurate and helpful response with inline citations."
+            )
+
+            # Append intent-specific output structure if present
+            if intent_prompt:
+                system_content += intent_prompt
+
             formatted_messages.append({
                 "role": "system",
-                "content": (
-                    "Use the following context to help answer the user's question. "
-                    "Each source is numbered. When you reference information from a specific source, "
-                    "add a citation marker [N] immediately after the relevant statement, where N is the source number.\n\n"
-                    "[Sources for reference]\n"
-                    f"{context}\n\n"
-                    "Guidelines:\n"
-                    "- Add [N] citations inline where information comes from source N\n"
-                    "- Multiple sources can be cited together like [1][2]\n"
-                    "- Be precise - cite at the claim level, not just at the end of paragraphs\n"
-                    "- Natural placement - citations should feel unobtrusive\n\n"
-                    "Now provide an accurate and helpful response with inline citations."
-                )
+                "content": system_content
             })
 
         # Add conversation messages (filter out empty messages)

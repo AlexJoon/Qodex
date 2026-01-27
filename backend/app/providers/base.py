@@ -23,6 +23,7 @@ class BaseProvider(ABC):
         context: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: int = 4096,
+        intent_prompt: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         """
         Stream a completion response.
@@ -32,6 +33,7 @@ class BaseProvider(ABC):
             context: Optional RAG context to include
             temperature: Sampling temperature
             max_tokens: Maximum tokens to generate
+            intent_prompt: Optional intent-specific prompt suffix to append to system message
 
         Yields:
             String chunks of the response
@@ -59,28 +61,34 @@ class BaseProvider(ABC):
         pass
 
     def _format_messages_for_api(
-        self, messages: List[Message], context: Optional[str] = None
+        self, messages: List[Message], context: Optional[str] = None, intent_prompt: Optional[str] = None
     ) -> List[Dict[str, str]]:
         """Format messages for the API, optionally including context with citation instructions."""
         formatted = []
 
         # Add system message with context if provided
         if context:
+            system_content = (
+                "Use the following context to help answer the user's question. "
+                "Each source is numbered. When you reference information from a specific source, "
+                "add a citation marker [N] immediately after the relevant statement, where N is the source number.\n\n"
+                "[Sources for reference]\n"
+                f"{context}\n\n"
+                "Guidelines:\n"
+                "- Add [N] citations inline where information comes from source N\n"
+                "- Multiple sources can be cited together like [1][2]\n"
+                "- Be precise - cite at the claim level, not just at the end of paragraphs\n"
+                "- Natural placement - citations should feel unobtrusive\n\n"
+                "Now provide an accurate and helpful response with inline citations."
+            )
+
+            # Append intent-specific output structure if present
+            if intent_prompt:
+                system_content += intent_prompt
+
             formatted.append({
                 "role": "system",
-                "content": (
-                    "Use the following context to help answer the user's question. "
-                    "Each source is numbered. When you reference information from a specific source, "
-                    "add a citation marker [N] immediately after the relevant statement, where N is the source number.\n\n"
-                    "[Sources for reference]\n"
-                    f"{context}\n\n"
-                    "Guidelines:\n"
-                    "- Add [N] citations inline where information comes from source N\n"
-                    "- Multiple sources can be cited together like [1][2]\n"
-                    "- Be precise - cite at the claim level, not just at the end of paragraphs\n"
-                    "- Natural placement - citations should feel unobtrusive\n\n"
-                    "Now provide an accurate and helpful response with inline citations."
-                )
+                "content": system_content
             })
 
         # Add conversation messages (filter out empty messages)

@@ -23,9 +23,10 @@ class OpenAIProvider(BaseProvider):
         context: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: int = 4096,
+        intent_prompt: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         """Stream completion from OpenAI."""
-        formatted_messages = self._format_messages_for_api(messages, context)
+        formatted_messages = self._format_messages_for_api(messages, context, intent_prompt)
 
         stream = await self.client.chat.completions.create(
             model=self.model,

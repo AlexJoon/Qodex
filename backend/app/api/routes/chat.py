@@ -14,6 +14,7 @@ from app.models import Message, MessageRole, DocumentSource
 from app.providers import ProviderRegistry
 from app.services.document_service import get_document_service
 from app.utils.streaming import create_sse_response, format_sse_event
+from app.services.intent_classifier import classify_intent
 from app.api.routes.discussions import get_discussions_storage
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
@@ -87,6 +88,9 @@ async def stream_chat(request: ChatRequest):
     if discussion.title == "New Chat":
         discussion.title = request.message[:50] + ("..." if len(request.message) > 50 else "")
         title_updated = True
+
+    # Classify user intent for structured output (zero-latency regex matching)
+    intent_result = classify_intent(request.message)
 
     # Start RAG search in parallel with provider setup (non-blocking)
     doc_service = get_document_service()
@@ -178,12 +182,21 @@ async def stream_chat(request: ChatRequest):
             }
             yield f"data: {json.dumps(sources_data)}\n\n"
 
+        # Emit intent event
+        intent_data = {
+            "type": "intent",
+            "intent": intent_result.intent,
+            "label": intent_result.label
+        }
+        yield f"data: {json.dumps(intent_data)}\n\n"
+
         async for chunk in create_sse_response(
             provider.stream_completion(
                 messages=context_messages,
                 context=context,
                 temperature=request.temperature,
-                max_tokens=request.max_tokens
+                max_tokens=request.max_tokens,
+                intent_prompt=intent_result.prompt_suffix,
             ),
             provider=request.provider,
             send_done=False  # Don't send done event yet
@@ -209,7 +222,8 @@ async def stream_chat(request: ChatRequest):
             provider=request.provider,
             timestamp=datetime.utcnow(),
             response_time_ms=response_time,
-            sources=sources if sources else None
+            sources=sources if sources else None,
+            intent=intent_result.intent,
         )
 
         # Generate suggested questions

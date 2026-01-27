@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { FileText } from 'lucide-react';
 import { DocumentSource } from '@/shared/types';
+import { useDocumentPreviewStore } from '@/features/documents';
 import './InlineCitation.css';
 
 interface InlineCitationProps {
@@ -12,6 +13,7 @@ export function InlineCitation({ number, source }: InlineCitationProps) {
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState<'top' | 'bottom'>('top');
   const citationRef = useRef<HTMLSpanElement>(null);
+  const { openDocumentPreview } = useDocumentPreviewStore();
 
   useEffect(() => {
     if (showTooltip && citationRef.current && source) {
@@ -39,6 +41,10 @@ export function InlineCitation({ number, source }: InlineCitationProps) {
       className="inline-citation-wrapper"
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
+      onClick={() => {
+        const docId = source.document_id || source.id;
+        if (docId) openDocumentPreview(docId);
+      }}
     >
       <sup className="inline-citation interactive">[{number}]</sup>
 

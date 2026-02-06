@@ -10,6 +10,12 @@ import asyncio
 import logging
 
 from app.core.config import get_settings
+from app.core.research_modes import (
+    ResearchMode,
+    get_research_mode_config,
+    list_research_modes as get_all_research_modes,
+    DEFAULT_RESEARCH_MODE,
+)
 from app.models import Message, MessageRole, DocumentSource
 from app.providers import ProviderRegistry
 from app.services.document_service import get_document_service
@@ -29,6 +35,7 @@ class ChatRequest(BaseModel):
     document_ids: Optional[List[str]] = None
     temperature: float = 0.7
     max_tokens: int = 4096
+    research_mode: ResearchMode = DEFAULT_RESEARCH_MODE
 
 
 class ChatResponse(BaseModel):
@@ -92,12 +99,15 @@ async def stream_chat(request: ChatRequest):
     # Classify user intent for structured output (zero-latency regex matching)
     intent_result = classify_intent(request.message)
 
+    # Get research mode configuration
+    research_config = get_research_mode_config(request.research_mode)
+
     # Start RAG search in parallel with provider setup (non-blocking)
     doc_service = get_document_service()
     rag_task = asyncio.create_task(
         doc_service.pinecone.search_documents(
             query=request.message,
-            top_k=5,
+            top_k=research_config.top_k,
             document_ids=request.document_ids if request.document_ids else None
         )
     )
@@ -190,26 +200,26 @@ async def stream_chat(request: ChatRequest):
         }
         yield f"data: {json.dumps(intent_data)}\n\n"
 
-        async for chunk in create_sse_response(
-            provider.stream_completion(
+        # Wrap the provider stream to collect raw chunks before SSE serialization,
+        # avoiding the cost of re-parsing our own JSON output.
+        async def _collect_and_stream():
+            async for chunk in provider.stream_completion(
                 messages=context_messages,
                 context=context,
                 temperature=request.temperature,
                 max_tokens=request.max_tokens,
                 intent_prompt=intent_result.prompt_suffix,
-            ),
+                research_prompt=research_config.prompt_enhancement,
+            ):
+                full_response.append(chunk)
+                yield chunk
+
+        async for sse_event in create_sse_response(
+            _collect_and_stream(),
             provider=request.provider,
-            send_done=False  # Don't send done event yet
+            send_done=False,
         ):
-            # Collect response for saving
-            if '"type": "chunk"' in chunk:
-                try:
-                    data = json.loads(chunk.replace("data: ", "").strip())
-                    if data.get("content"):
-                        full_response.append(data["content"])
-                except:
-                    pass
-            yield chunk
+            yield sse_event
 
         # Save assistant response to discussion after streaming completes
         response_time = int((time.time() - start_time) * 1000)
@@ -304,3 +314,12 @@ async def list_providers():
     ]
 
     return {"providers": providers}
+
+
+@router.get("/research-modes")
+async def list_research_modes():
+    """List available research modes and their configurations."""
+    return {
+        "modes": get_all_research_modes(),
+        "default": DEFAULT_RESEARCH_MODE.value
+    }

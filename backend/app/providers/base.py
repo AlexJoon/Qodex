@@ -24,6 +24,7 @@ class BaseProvider(ABC):
         temperature: float = 0.7,
         max_tokens: int = 4096,
         intent_prompt: Optional[str] = None,
+        research_prompt: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         """
         Stream a completion response.
@@ -34,6 +35,7 @@ class BaseProvider(ABC):
             temperature: Sampling temperature
             max_tokens: Maximum tokens to generate
             intent_prompt: Optional intent-specific prompt suffix to append to system message
+            research_prompt: Optional research depth prompt to control response thoroughness
 
         Yields:
             String chunks of the response
@@ -61,7 +63,11 @@ class BaseProvider(ABC):
         pass
 
     def _format_messages_for_api(
-        self, messages: List[Message], context: Optional[str] = None, intent_prompt: Optional[str] = None
+        self,
+        messages: List[Message],
+        context: Optional[str] = None,
+        intent_prompt: Optional[str] = None,
+        research_prompt: Optional[str] = None,
     ) -> List[Dict[str, str]]:
         """Format messages for the API, optionally including context with citation instructions."""
         formatted = []
@@ -81,6 +87,10 @@ class BaseProvider(ABC):
                 "- Natural placement - citations should feel unobtrusive\n\n"
                 "Now provide an accurate and helpful response with inline citations."
             )
+
+            # Append research depth instructions (controls thoroughness)
+            if research_prompt:
+                system_content += research_prompt
 
             # Append intent-specific output structure if present
             if intent_prompt:

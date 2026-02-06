@@ -2,6 +2,7 @@ from typing import List, Optional, Dict, Any, Tuple
 import tiktoken
 import uuid
 import logging
+import re
 from pypdf import PdfReader
 from docx import Document as DocxDocument
 import io
@@ -244,12 +245,126 @@ class DocumentService:
         return {"content": content, "type": chunk_type}
 
     def _extract_text_from_pdf(self, content: bytes) -> str:
-        """Extract text from PDF content."""
+        """Extract text from PDF content with cleanup and normalization."""
         reader = PdfReader(io.BytesIO(content))
         text = ""
         for page in reader.pages:
-            text += page.extract_text() + "\n"
+            page_text = page.extract_text() or ""
+            text += page_text + "\n"
+
+        # Clean up the extracted text
+        text = self._clean_pdf_text(text)
         return text
+
+    def _clean_pdf_text(self, text: str) -> str:
+        """
+        Clean up PDF extracted text by removing watermarks and
+        rejoining fragmented lines.
+
+        Uses only structural / statistical heuristics — no keyword matching.
+        Default behaviour is JOIN; only starts a new line on strong signals.
+        """
+        # Phase 1: Remove noise
+        text = re.sub(r'Downloaded from Qodex[^\n]*', '', text, flags=re.IGNORECASE)
+        text = re.sub(r'^\s*Page\s+\d+\s+of\s+\d+\s*$', '', text, flags=re.MULTILINE)
+        text = re.sub(r'^\s*\d{1,3}\s*$', '', text, flags=re.MULTILINE)
+
+        # Phase 2: Defragment — default to joining
+        lines = text.split('\n')
+        cleaned_lines: list[str] = []
+        buffer: list[str] = []
+
+        def flush():
+            if buffer:
+                cleaned_lines.append(' '.join(buffer))
+                buffer.clear()
+
+        for line in lines:
+            stripped = line.strip()
+
+            if not stripped:
+                flush()
+                cleaned_lines.append('')
+                continue
+
+            if not buffer:
+                buffer.append(stripped)
+                continue
+
+            if self._is_new_logical_line(stripped, buffer):
+                flush()
+                buffer.append(stripped)
+            else:
+                # Handle hyphenation
+                if buffer and buffer[-1].endswith('-') and stripped[0:1].islower():
+                    buffer[-1] = buffer[-1][:-1]
+                buffer.append(stripped)
+
+        flush()
+
+        result = '\n'.join(cleaned_lines)
+        result = re.sub(r'\n{3,}', '\n\n', result)
+        result = re.sub(r'[ \t]{2,}', ' ', result)
+        return result.strip()
+
+    @staticmethod
+    def _is_all_caps(text: str) -> bool:
+        """Check if text is ALL-CAPS (every word uppercase, at least one 2+ char word)."""
+        has_substantial = False
+        for word in text.split():
+            letters = re.sub(r'[^a-zA-Z]', '', word)
+            if not letters:
+                continue
+            if letters != letters.upper():
+                return False
+            if len(letters) >= 2:
+                has_substantial = True
+        return has_substantial
+
+    @staticmethod
+    def _is_title_like(text: str) -> bool:
+        """Check if text looks like a title: 2-8 words, mostly capitalised, no sentence-end punctuation."""
+        words = text.split()
+        wc = len(words)
+        if wc < 2 or wc > 8:
+            return False
+        if len(text) >= 80:
+            return False
+        if re.search(r'[.!?]\s*$', text):
+            return False
+        if not text[0].isupper():
+            return False
+        cap_count = sum(1 for w in words if w[0].isupper())
+        return cap_count >= wc * 0.5
+
+    def _is_new_logical_line(self, line: str, buffer: list) -> bool:
+        """
+        Should this line start a new logical line rather than joining the buffer?
+
+        AGGRESSIVE JOIN: only breaks for unambiguous syntax (bullets, numbered
+        lists).  All heading/structure detection is deferred to the frontend
+        rendering pipeline.
+        """
+        # Syntax-based structural elements — always start new
+        if re.match(r'^[•●○]\s', line):
+            return True
+        if re.match(r'^[-*]\s', line) and len(line) < 200:
+            return True
+        if re.match(r'^\d+[.)]\s', line):
+            return True
+        if re.match(r'^#{1,3}\s', line):
+            return True
+        if re.match(r'^[-_*]{3,}\s*$', line):
+            return True
+
+        # After sentence boundary, only break if new line is substantial (>= 40 chars)
+        prev_text = ' '.join(buffer)
+        prev_ended_sentence = bool(re.search(r'[.!?]\s*$', prev_text))
+        if prev_ended_sentence and line[0:1].isupper() and len(line) >= 40:
+            return True
+
+        # Default: JOIN
+        return False
 
     def _extract_text_from_docx(self, content: bytes) -> str:
         """Extract text from DOCX content."""

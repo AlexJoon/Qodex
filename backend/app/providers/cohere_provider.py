@@ -24,6 +24,7 @@ class CohereProvider(BaseProvider):
         temperature: float = 0.7,
         max_tokens: int = 4096,
         intent_prompt: Optional[str] = None,
+        research_prompt: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         """Stream completion from Cohere V2 API."""
         formatted_messages = []
@@ -43,6 +44,10 @@ class CohereProvider(BaseProvider):
                 "- Natural placement - citations should feel unobtrusive\n\n"
                 "Now provide an accurate and helpful response with inline citations."
             )
+
+            # Append research depth instructions (controls thoroughness)
+            if research_prompt:
+                system_content += research_prompt
 
             # Append intent-specific output structure if present
             if intent_prompt:

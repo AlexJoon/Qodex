@@ -1,0 +1,109 @@
+/* Chat Area Container */
+.chat-area {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--color-white);
+}
+
+/* When empty - center everything vertically */
+.chat-area.empty {
+  justify-content: center;
+  align-items: center;
+  padding: 40px 24px;
+}
+
+/* Messages Container */
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-messages-inner {
+  max-width: 768px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+/* Input Container - Default (bottom) */
+.chat-input-container {
+  border-top: 1px solid var(--gray-100);
+  background-color: var(--color-white);
+  padding: 16px;
+}
+
+.chat-input-wrapper {
+  max-width: 768px;
+  margin: 0 auto;
+}
+
+/* Input Container - Centered (when empty) */
+.chat-area.empty .chat-input-container {
+  border-top: none;
+  padding: 24px 16px;
+  width: 100%;
+  max-width: 800px;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* Quick Actions - below input when empty */
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+  max-width: 600px;
+}
+
+.empty-state-title {
+  font-size: 36px;
+  font-weight: 600;
+  color: var(--gray-900);
+  margin-bottom: 8px;
+}
+
+.empty-state-subtitle {
+  font-size: 15px;
+  color: var(--gray-500);
+  max-width: 480px;
+  line-height: 1.6;
+}
+
+
+.quick-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background-color: var(--color-white);
+  border: 1px solid var(--gray-200);
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gray-700);
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.quick-action-btn:hover {
+  background-color: var(--gray-50);
+  border-color: var(--gray-300);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.quick-action-btn svg {
+  color: var(--gray-500);
+}
+

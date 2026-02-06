@@ -54,6 +54,22 @@ export interface Provider {
   configured: boolean;
 }
 
+// Research Mode types
+export type ResearchMode = 'quick' | 'enhanced' | 'deep';
+
+export interface ResearchModeConfig {
+  mode: ResearchMode;
+  label: string;
+  description: string;
+  top_k: number;
+  is_default: boolean;
+}
+
+export interface ResearchModesResponse {
+  modes: ResearchModeConfig[];
+  default: ResearchMode;
+}
+
 // Document types
 export interface Document {
   id: string;
@@ -81,6 +97,7 @@ export interface ChatRequest {
   document_ids?: string[];
   temperature?: number;
   max_tokens?: number;
+  research_mode?: ResearchMode;
 }
 
 // SSE Event types

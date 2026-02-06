@@ -5,17 +5,21 @@ import { useChatStore } from '@/features/chat';
 import { useDiscussionStore } from '@/features/discussions';
 import { useProviderStore } from '@/features/providers';
 import { useDocumentStore } from '@/features/documents';
+import { useResearchModeStore } from '@/features/research';
+import { useChunkBuffer } from '@/shared/hooks/useChunkBuffer';
 import { ProviderName } from '@/shared/types';
-import { api } from '@/shared/services/api';
 
 export function useSSE() {
   const navigate = useNavigate();
   const messageIdRef = useRef<string>('');
 
   const { addMessage, startStream, appendToStream, setStreamSources, setStreamSuggestedQuestions, setStreamIntent, finalizeStream, cancelStream } = useChatStore();
+  const { push: pushChunk, flush: flushChunks } = useChunkBuffer(appendToStream);
+  // appendToStream is passed to the chunk buffer — not called directly
   const { activeDiscussionId, updateDiscussionTitle } = useDiscussionStore();
   const { activeProvider } = useProviderStore();
   const { selectedDocumentIds } = useDocumentStore();
+  const { activeMode } = useResearchModeStore();
 
   const sendMessage = useCallback(
     async (content: string, provider?: ProviderName, discussionId?: string) => {
@@ -51,6 +55,7 @@ export function useSSE() {
           message: content,
           provider: selectedProvider,
           document_ids: selectedDocumentIds.length > 0 ? selectedDocumentIds : undefined,
+          research_mode: activeMode,
         });
 
         for await (const event of stream) {
@@ -62,17 +67,19 @@ export function useSSE() {
           } else if (event.type === 'intent') {
             setStreamIntent(event.intent, event.label);
           } else if (event.type === 'chunk') {
-            appendToStream(event.content);
+            pushChunk(event.content);
           } else if (event.type === 'suggested_questions') {
             setStreamSuggestedQuestions(event.questions);
           } else if (event.type === 'error') {
             throw new Error(event.error);
           } else if (event.type === 'done') {
+            flushChunks();
             finalizeStream(messageIdRef.current);
             break;
           }
         }
       } catch (error) {
+        flushChunks();
         cancelStream();
         throw error;
       }
@@ -82,9 +89,11 @@ export function useSSE() {
       activeDiscussionId,
       activeProvider,
       selectedDocumentIds,
+      activeMode,
       addMessage,
       startStream,
-      appendToStream,
+      pushChunk,
+      flushChunks,
       setStreamSources,
       setStreamSuggestedQuestions,
       setStreamIntent,
@@ -95,9 +104,10 @@ export function useSSE() {
   );
 
   const stopStream = useCallback(() => {
+    flushChunks();
     sseClient.cancel();
     cancelStream();
-  }, [cancelStream]);
+  }, [flushChunks, cancelStream]);
 
   return {
     sendMessage,

@@ -13,6 +13,295 @@ interface ConversationExportOptions {
   title?: string;
 }
 
+interface DocumentExportOptions {
+  filename: string;
+  fullContent: string;
+  chunks?: Array<{
+    id: string;
+    content: string;
+    chunk_index: number;
+    content_type?: string;
+  }>;
+}
+
+/**
+ * Clean markdown text for PDF rendering.
+ * Strips markdown syntax while preserving readable text.
+ */
+function cleanMarkdownText(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')           // Remove bold markers
+    .replace(/\*(.*?)\*/g, '$1')               // Remove italic markers
+    .replace(/`(.*?)`/g, '$1')                 // Remove inline code markers
+    .replace(/\[(.*?)\]\((.*?)\)/g, '$1')      // Convert links to just text
+    .replace(/\[\d+\]/g, '')                   // Remove citation markers like [1], [2]
+    .replace(/\s+/g, ' ')                      // Normalize whitespace
+    .trim();
+}
+
+/**
+ * Calculate indent level from leading whitespace.
+ * Returns indent level (0, 1, 2, etc.) based on 2-space indentation.
+ */
+function getIndentLevel(line: string): number {
+  const match = line.match(/^(\s*)/);
+  if (!match) return 0;
+  const spaces = match[1].length;
+  return Math.floor(spaces / 2);
+}
+
+/**
+ * Render formatted content to PDF with proper structure and styling.
+ */
+function renderContentToPDF(
+  pdf: jsPDF,
+  content: string,
+  margin: number,
+  contentWidth: number,
+  pageHeight: number,
+  startY: number
+): number {
+  let yPosition = startY;
+  let inCodeBlock = false;
+  let codeBlockContent: string[] = [];
+
+  const checkPageBreak = (height: number) => {
+    if (yPosition + height > pageHeight - margin - 15) {
+      pdf.addPage();
+      yPosition = margin;
+    }
+  };
+
+  const lines = content.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+
+    // Handle code blocks
+    if (trimmedLine.startsWith('```')) {
+      if (!inCodeBlock) {
+        inCodeBlock = true;
+        codeBlockContent = [];
+        continue;
+      } else {
+        // End of code block - render it
+        inCodeBlock = false;
+        if (codeBlockContent.length > 0) {
+          checkPageBreak(codeBlockContent.length * 4 + 6);
+
+          // Draw code block background
+          const blockHeight = codeBlockContent.length * 4 + 4;
+          pdf.setFillColor(245, 245, 245);
+          pdf.rect(margin, yPosition - 2, contentWidth, blockHeight, 'F');
+
+          // Render code
+          pdf.setFont('courier', 'normal');
+          pdf.setFontSize(9);
+          pdf.setTextColor(50, 50, 50);
+
+          for (const codeLine of codeBlockContent) {
+            const wrappedCode = pdf.splitTextToSize(codeLine, contentWidth - 6);
+            for (const wrappedCodeLine of wrappedCode) {
+              pdf.text(wrappedCodeLine, margin + 3, yPosition + 2);
+              yPosition += 4;
+            }
+          }
+          yPosition += 4;
+
+          // Reset font
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(11);
+          pdf.setTextColor(0, 0, 0);
+        }
+        continue;
+      }
+    }
+
+    if (inCodeBlock) {
+      codeBlockContent.push(line);
+      continue;
+    }
+
+    // Handle horizontal rules
+    if (/^[-*_]{3,}$/.test(trimmedLine)) {
+      checkPageBreak(8);
+      yPosition += 3;
+      pdf.setDrawColor(200, 200, 200);
+      pdf.line(margin, yPosition, margin + contentWidth, yPosition);
+      yPosition += 5;
+      continue;
+    }
+
+    // Handle H4 headers
+    if (trimmedLine.startsWith('#### ')) {
+      checkPageBreak(10);
+      yPosition += 4; // Add space before header
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(11);
+      const headerText = cleanMarkdownText(trimmedLine.replace(/^####\s*/, ''));
+      const wrappedHeaders = pdf.splitTextToSize(headerText, contentWidth);
+      for (const wrappedHeader of wrappedHeaders) {
+        pdf.text(wrappedHeader, margin, yPosition);
+        yPosition += 5;
+      }
+      yPosition += 2; // Add space after header
+      pdf.setFont('helvetica', 'normal');
+      continue;
+    }
+
+    // Handle H3 headers
+    if (trimmedLine.startsWith('### ')) {
+      checkPageBreak(12);
+      yPosition += 5;
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(12);
+      const headerText = cleanMarkdownText(trimmedLine.replace(/^###\s*/, ''));
+      const wrappedHeaders = pdf.splitTextToSize(headerText, contentWidth);
+      for (const wrappedHeader of wrappedHeaders) {
+        pdf.text(wrappedHeader, margin, yPosition);
+        yPosition += 6;
+      }
+      yPosition += 2;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(11);
+      continue;
+    }
+
+    // Handle H2 headers
+    if (trimmedLine.startsWith('## ')) {
+      checkPageBreak(14);
+      yPosition += 6;
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(14);
+      const headerText = cleanMarkdownText(trimmedLine.replace(/^##\s*/, ''));
+      const wrappedHeaders = pdf.splitTextToSize(headerText, contentWidth);
+      for (const wrappedHeader of wrappedHeaders) {
+        pdf.text(wrappedHeader, margin, yPosition);
+        yPosition += 7;
+      }
+      yPosition += 3;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(11);
+      continue;
+    }
+
+    // Handle H1 headers
+    if (trimmedLine.startsWith('# ')) {
+      checkPageBreak(16);
+      yPosition += 7;
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      const headerText = cleanMarkdownText(trimmedLine.replace(/^#\s*/, ''));
+      const wrappedHeaders = pdf.splitTextToSize(headerText, contentWidth);
+      for (const wrappedHeader of wrappedHeaders) {
+        pdf.text(wrappedHeader, margin, yPosition);
+        yPosition += 8;
+      }
+      yPosition += 3;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(11);
+      continue;
+    }
+
+    // Handle list items (with nesting support)
+    const bulletMatch = line.match(/^(\s*)([-*])\s+(.*)$/);
+    const numberedMatch = line.match(/^(\s*)(\d+)\.\s+(.*)$/);
+
+    if (bulletMatch) {
+      const indentLevel = getIndentLevel(line);
+      const indent = indentLevel * 5;
+      const itemText = cleanMarkdownText(bulletMatch[3]);
+
+      checkPageBreak(6);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(11);
+      pdf.setTextColor(0, 0, 0);
+
+      const bulletChar = indentLevel === 0 ? '•' : indentLevel === 1 ? '◦' : '‣';
+      const wrappedLines = pdf.splitTextToSize(itemText, contentWidth - indent - 8);
+
+      for (let j = 0; j < wrappedLines.length; j++) {
+        checkPageBreak(5);
+        if (j === 0) {
+          pdf.text(bulletChar, margin + indent, yPosition);
+          pdf.text(wrappedLines[j], margin + indent + 5, yPosition);
+        } else {
+          pdf.text(wrappedLines[j], margin + indent + 5, yPosition);
+        }
+        yPosition += 5;
+      }
+      continue;
+    }
+
+    if (numberedMatch) {
+      const indentLevel = getIndentLevel(line);
+      const indent = indentLevel * 5;
+      const number = numberedMatch[2];
+      const itemText = cleanMarkdownText(numberedMatch[3]);
+
+      checkPageBreak(6);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(11);
+      pdf.setTextColor(0, 0, 0);
+
+      const wrappedLines = pdf.splitTextToSize(itemText, contentWidth - indent - 10);
+
+      for (let j = 0; j < wrappedLines.length; j++) {
+        checkPageBreak(5);
+        if (j === 0) {
+          pdf.text(`${number}.`, margin + indent, yPosition);
+          pdf.text(wrappedLines[j], margin + indent + 7, yPosition);
+        } else {
+          pdf.text(wrappedLines[j], margin + indent + 7, yPosition);
+        }
+        yPosition += 5;
+      }
+      continue;
+    }
+
+    // Handle empty lines
+    if (trimmedLine === '') {
+      yPosition += 3;
+      continue;
+    }
+
+    // Handle bold-only lines (like **Title**)
+    if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**') && !trimmedLine.slice(2, -2).includes('**')) {
+      checkPageBreak(6);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(11);
+      const boldText = trimmedLine.slice(2, -2);
+      const wrappedLines = pdf.splitTextToSize(boldText, contentWidth);
+      for (const wrappedLine of wrappedLines) {
+        checkPageBreak(5);
+        pdf.text(wrappedLine, margin, yPosition);
+        yPosition += 5;
+      }
+      pdf.setFont('helvetica', 'normal');
+      continue;
+    }
+
+    // Regular text
+    checkPageBreak(6);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(11);
+    pdf.setTextColor(0, 0, 0);
+
+    const cleanLine = cleanMarkdownText(line);
+    if (cleanLine) {
+      const wrappedLines = pdf.splitTextToSize(cleanLine, contentWidth);
+      for (const wrappedLine of wrappedLines) {
+        checkPageBreak(5);
+        pdf.text(wrappedLine, margin, yPosition);
+        yPosition += 5;
+      }
+    }
+  }
+
+  return yPosition;
+}
+
 /**
  * Export a message to PDF with clean formatting.
  * Uses jsPDF for direct text rendering (cleaner than html2canvas for text content).
@@ -34,14 +323,6 @@ export async function exportMessageToPDF({
   const margin = 20;
   const contentWidth = pageWidth - margin * 2;
   let yPosition = margin;
-
-  // Helper to add new page if needed
-  const checkPageBreak = (height: number) => {
-    if (yPosition + height > pageHeight - margin) {
-      pdf.addPage();
-      yPosition = margin;
-    }
-  };
 
   // Title
   pdf.setFontSize(18);
@@ -78,98 +359,9 @@ export async function exportMessageToPDF({
   pdf.line(margin, yPosition, pageWidth - margin, yPosition);
   yPosition += 10;
 
-  // Content
-  pdf.setFontSize(11);
+  // Render content
   pdf.setTextColor(0, 0, 0);
-  pdf.setFont('helvetica', 'normal');
-
-  // Process content - handle markdown-like formatting
-  const lines = content.split('\n');
-
-  for (const line of lines) {
-    const trimmedLine = line.trim();
-
-    // Handle headers
-    if (trimmedLine.startsWith('### ')) {
-      checkPageBreak(8);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(13);
-      const headerText = trimmedLine.replace(/^###\s*/, '');
-      pdf.text(headerText, margin, yPosition);
-      yPosition += 7;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(11);
-    } else if (trimmedLine.startsWith('## ')) {
-      checkPageBreak(10);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(14);
-      const headerText = trimmedLine.replace(/^##\s*/, '');
-      pdf.text(headerText, margin, yPosition);
-      yPosition += 8;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(11);
-    } else if (trimmedLine.startsWith('# ')) {
-      checkPageBreak(12);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(16);
-      const headerText = trimmedLine.replace(/^#\s*/, '');
-      pdf.text(headerText, margin, yPosition);
-      yPosition += 10;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(11);
-    } else if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ') || /^\d+\.\s/.test(trimmedLine)) {
-      // List items
-      checkPageBreak(6);
-      const bulletText = trimmedLine.replace(/^[-*]\s/, '• ').replace(/^\d+\.\s/, (match) => match);
-      const wrappedLines = pdf.splitTextToSize(bulletText, contentWidth - 5);
-      for (let i = 0; i < wrappedLines.length; i++) {
-        checkPageBreak(5);
-        pdf.text(wrappedLines[i], margin + (i === 0 ? 0 : 5), yPosition);
-        yPosition += 5;
-      }
-    } else if (trimmedLine === '') {
-      // Empty line - add spacing
-      yPosition += 3;
-    } else if (trimmedLine.startsWith('```')) {
-      // Code block marker - add visual indication
-      checkPageBreak(6);
-      pdf.setFont('courier', 'normal');
-      pdf.setFontSize(10);
-      pdf.setTextColor(80, 80, 80);
-    } else if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**')) {
-      // Bold text
-      checkPageBreak(6);
-      pdf.setFont('helvetica', 'bold');
-      const boldText = trimmedLine.replace(/^\*\*|\*\*$/g, '');
-      const wrappedLines = pdf.splitTextToSize(boldText, contentWidth);
-      for (const wrappedLine of wrappedLines) {
-        checkPageBreak(5);
-        pdf.text(wrappedLine, margin, yPosition);
-        yPosition += 5;
-      }
-      pdf.setFont('helvetica', 'normal');
-    } else {
-      // Regular text - wrap to fit page width
-      checkPageBreak(6);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(11);
-      pdf.setTextColor(0, 0, 0);
-
-      // Clean up markdown formatting for PDF
-      let cleanLine = line
-        .replace(/\*\*(.*?)\*\*/g, '$1')  // Remove bold markers
-        .replace(/\*(.*?)\*/g, '$1')       // Remove italic markers
-        .replace(/`(.*?)`/g, '$1')         // Remove inline code markers
-        .replace(/\[(.*?)\]\(.*?\)/g, '$1'); // Convert links to just text
-
-      const wrappedLines = pdf.splitTextToSize(cleanLine, contentWidth);
-      for (const wrappedLine of wrappedLines) {
-        checkPageBreak(5);
-        pdf.text(wrappedLine, margin, yPosition);
-        yPosition += 5;
-      }
-    }
-  }
+  renderContentToPDF(pdf, content, margin, contentWidth, pageHeight, yPosition);
 
   // Footer
   const totalPages = pdf.getNumberOfPages();
@@ -216,7 +408,7 @@ export async function exportConversationToPDF({
 
   // Helper to add new page if needed
   const checkPageBreak = (height: number) => {
-    if (yPosition + height > pageHeight - margin) {
+    if (yPosition + height > pageHeight - margin - 15) {
       pdf.addPage();
       yPosition = margin;
     }
@@ -254,7 +446,7 @@ export async function exportConversationToPDF({
       pdf.setTextColor(59, 130, 246); // Blue for user
       pdf.text('You:', margin, yPosition);
     } else {
-      pdf.setTextColor(107, 114, 128); // Gray for assistant
+      pdf.setTextColor(16, 185, 129); // Green for assistant
       const providerNames: Record<string, string> = {
         openai: 'OpenAI',
         mistral: 'Mistral',
@@ -265,46 +457,21 @@ export async function exportConversationToPDF({
       pdf.text(`${providerName}:`, margin, yPosition);
     }
 
-    yPosition += 7;
+    yPosition += 8;
 
-    // Message content
-    pdf.setFontSize(11);
+    // Render message content using shared renderer
     pdf.setTextColor(0, 0, 0);
-    pdf.setFont('helvetica', 'normal');
-
-    const lines = message.content.split('\n');
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-
-      if (trimmedLine === '') {
-        yPosition += 3;
-        continue;
-      }
-
-      // Handle markdown formatting (simplified version)
-      let cleanLine = line
-        .replace(/\*\*(.*?)\*\*/g, '$1')
-        .replace(/\*(.*?)\*/g, '$1')
-        .replace(/`(.*?)`/g, '$1')
-        .replace(/\[(.*?)\]\(.*?\)/g, '$1');
-
-      const wrappedLines = pdf.splitTextToSize(cleanLine, contentWidth);
-      for (const wrappedLine of wrappedLines) {
-        checkPageBreak(5);
-        pdf.text(wrappedLine, margin + 3, yPosition);
-        yPosition += 5;
-      }
-    }
+    yPosition = renderContentToPDF(pdf, message.content, margin + 3, contentWidth - 3, pageHeight, yPosition);
 
     // Add spacing between messages
-    yPosition += 8;
+    yPosition += 6;
 
     // Add separator between messages (except after last one)
     if (i < messages.length - 1) {
-      checkPageBreak(3);
-      pdf.setDrawColor(230, 230, 230);
-      pdf.line(margin, yPosition, pageWidth - margin, yPosition);
-      yPosition += 10;
+      checkPageBreak(8);
+      pdf.setDrawColor(220, 220, 220);
+      pdf.line(margin + 10, yPosition, pageWidth - margin - 10, yPosition);
+      yPosition += 8;
     }
   }
 
@@ -329,4 +496,220 @@ export async function exportConversationToPDF({
 
   // Download
   pdf.save(filename);
+}
+
+/**
+ * Preprocess plain text content to add markdown-like structure.
+ * Detects headings, lists, and sections common in syllabi and academic documents.
+ */
+function preprocessDocumentContent(content: string): string {
+  let text = content;
+
+  // Split inline structural elements onto their own lines
+  // Split "Session N:" / "Class N:" / "Week N:" etc. patterns
+  text = text.replace(/([^\n])\s+((?:Session|Class|Week|Lecture|Module|Seminar|Topic|Part)\s+\d+)/gi, '$1\n\n$2');
+
+  // Split body text after Session/Week/Lecture headings with date parentheticals
+  text = text.replace(/((?:Session|Class|Week|Lecture|Module|Seminar|Topic|Part)\s+\d+[^)\n]*\([^)]+\))\s+(?=[A-Z][a-z])/gi, '$1\n\n');
+
+  // Split ALL-CAPS headers (3+ words) that run inline after punctuation
+  text = text.replace(/([.!?)\d])\s+((?:[A-Z][A-Z&,\-()/%\d]+)(?:\s+(?:[A-Z][A-Z&,\-()/%\d]+|OF|ON|THE|AND|FOR|IN|TO|A|AN))+)\s+(?=[A-Z][a-z])/g, '$1\n\n$2\n\n');
+
+  // Split "Required readings" / "Additional readings" etc. onto own lines
+  text = text.replace(/([^\n])\s+((?:Required|Additional|Recommended|Suggested|Further|Optional)\s+(?:readings?|texts?|materials?|resources?))/gi, '$1\n\n$2');
+
+  // Split "Grading" related headers
+  text = text.replace(/([^\n])\s+(Grading\s+(?:rubric|criteria|breakdown|policy|scheme|structure)?)/gi, '$1\n\n$2');
+
+  // Split assignment headers
+  text = text.replace(/([^\n])\s+((?:INDIVIDUAL|GROUP|FINAL|MIDTERM|COURSE)\s+(?:ASSIGNMENT|PROJECT|EXAM|PAPER|PLAN|EVALUATION))/g, '$1\n\n$2');
+
+  // Split inline bullets
+  text = text.replace(/([^\n])(\s*[•●○]\s+)/g, '$1\n$2');
+  text = text.replace(/([^\n-])\s+(- [A-Za-z])/g, '$1\n$2');
+
+  // Convert roman numeral lists: (i), (ii), (iii), (iv), etc. to bullet points
+  text = text.replace(/\s*\(i+v?\)\s+/gi, '\n• ');
+  text = text.replace(/\s*\(v?i+\)\s+/gi, '\n• ');
+  text = text.replace(/\s*\(x+\)\s+/gi, '\n• ');
+
+  // Split sentences that start numbered items after punctuation
+  text = text.replace(/([.!?:;])\s+(\d+[.)]\s+[A-Z])/g, '$1\n$2');
+
+  // Normalize multiple spaces
+  text = text.replace(/[ \t]{2,}/g, ' ');
+
+  // Now process line by line to add markdown formatting
+  const lines = text.split('\n');
+  const formattedLines: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) {
+      formattedLines.push('');
+      continue;
+    }
+
+    // Detect ALL-CAPS headers (2+ uppercase words, under 100 chars)
+    if (/^[A-Z][A-Z\s:&,\-()/%\d]{3,}$/.test(line) && line.length < 100 && line.length > 5) {
+      // Major section header - use ## (H2)
+      formattedLines.push('');
+      formattedLines.push(`## ${line}`);
+      formattedLines.push('');
+      continue;
+    }
+
+    // Detect "Session N:" / "Week N:" / "Class N:" patterns
+    if (/^(?:Session|Class|Week|Lecture|Module|Seminar|Topic|Part)\s+\d+/i.test(line) && line.length < 150) {
+      formattedLines.push('');
+      formattedLines.push(`### ${line}`);
+      formattedLines.push('');
+      continue;
+    }
+
+    // Detect "Course Description", "Learning Objectives", etc. with trailing colon or standalone
+    if (/^[A-Z][A-Za-z\s,&\-']+:\s*$/.test(line) && line.length < 80) {
+      formattedLines.push('');
+      formattedLines.push(`### ${line.replace(/:\s*$/, '')}`);
+      formattedLines.push('');
+      continue;
+    }
+
+    // Detect standalone subheadings like "Required readings", "Grading rubric"
+    if (/^(?:Required|Additional|Recommended|Suggested|Further|Optional)\s+(?:readings?|texts?|materials?|resources?)\s*$/i.test(line)) {
+      formattedLines.push('');
+      formattedLines.push(`#### ${line}`);
+      formattedLines.push('');
+      continue;
+    }
+
+    if (/^Grading\s+(?:rubric|criteria|breakdown|policy|scheme|structure)?\s*$/i.test(line)) {
+      formattedLines.push('');
+      formattedLines.push(`#### ${line}`);
+      formattedLines.push('');
+      continue;
+    }
+
+    // Convert bullet-like patterns to proper bullets
+    if (/^[•●○]\s+/.test(line)) {
+      formattedLines.push(`- ${line.replace(/^[•●○]\s+/, '')}`);
+      continue;
+    }
+
+    // Numbered list items
+    if (/^\d+[.)]\s+/.test(line)) {
+      formattedLines.push(line);
+      continue;
+    }
+
+    // Regular paragraph text
+    formattedLines.push(line);
+  }
+
+  return formattedLines.join('\n');
+}
+
+/**
+ * Clean up document title for display.
+ * Removes underscores/dashes and formats nicely.
+ */
+function cleanDocumentTitle(filename: string): string {
+  return filename
+    .replace(/\.[^/.]+$/, '')           // Remove extension
+    .replace(/[-_]+/g, ' ')             // Replace dashes/underscores with spaces
+    .replace(/\s+/g, ' ')               // Normalize spaces
+    .trim();
+}
+
+/**
+ * Export a document (from stored chunks) to PDF.
+ * Reconstructs the document from chunks with syllabus-appropriate formatting.
+ */
+export async function exportDocumentToPDF({
+  filename,
+  fullContent,
+  chunks,
+}: DocumentExportOptions): Promise<void> {
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 20;
+  const contentWidth = pageWidth - margin * 2;
+  let yPosition = margin;
+
+  // Document title (cleaned up for display)
+  const docTitle = cleanDocumentTitle(filename);
+  pdf.setFontSize(18);
+  pdf.setFont('helvetica', 'bold');
+
+  // Wrap title if too long
+  const wrappedTitle = pdf.splitTextToSize(docTitle, contentWidth);
+  for (const titleLine of wrappedTitle) {
+    pdf.text(titleLine, margin, yPosition);
+    yPosition += 8;
+  }
+  yPosition += 4;
+
+  // Metadata line
+  pdf.setFontSize(10);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(128, 128, 128);
+
+  const chunkCount = chunks?.length || 0;
+  const metaText = chunkCount > 0
+    ? `Reconstructed from ${chunkCount} sections  |  Downloaded: ${new Date().toLocaleString()}`
+    : `Downloaded: ${new Date().toLocaleString()}`;
+  pdf.text(metaText, margin, yPosition);
+  yPosition += 8;
+
+  // Separator line
+  pdf.setDrawColor(200, 200, 200);
+  pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 10;
+
+  // Render document content
+  pdf.setTextColor(0, 0, 0);
+
+  // Use chunks if available (preserves structure), otherwise use full content
+  let rawContent = '';
+  if (chunks && chunks.length > 0) {
+    // Join chunk content with spacing for better readability
+    rawContent = chunks
+      .sort((a, b) => a.chunk_index - b.chunk_index)
+      .map(chunk => chunk.content)
+      .join('\n\n');
+  } else if (fullContent) {
+    rawContent = fullContent;
+  }
+
+  // Preprocess to detect and add markdown-like structure
+  const processedContent = preprocessDocumentContent(rawContent);
+  yPosition = renderContentToPDF(pdf, processedContent, margin, contentWidth, pageHeight, yPosition);
+
+  // Footer on all pages
+  const totalPages = pdf.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    pdf.setPage(i);
+    pdf.setFontSize(9);
+    pdf.setTextColor(150, 150, 150);
+    pdf.text(
+      `Downloaded from Qodex  |  Page ${i} of ${totalPages}`,
+      pageWidth / 2,
+      pageHeight - 10,
+      { align: 'center' }
+    );
+  }
+
+  // Generate filename for download
+  const dateStr = new Date().toISOString().split('T')[0];
+  const safeFilename = filename.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9-_]/g, '-').slice(0, 50);
+  const downloadFilename = `${safeFilename}-${dateStr}.pdf`;
+
+  // Download
+  pdf.save(downloadFilename);
 }

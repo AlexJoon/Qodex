@@ -6,6 +6,7 @@ import {
   Provider,
   Message,
   MessageRole,
+  ResearchModesResponse,
 } from '@/shared/types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -92,6 +93,11 @@ class ApiService {
   // Providers
   async getProviders(): Promise<{ providers: Provider[] }> {
     return this.request<{ providers: Provider[] }>('/api/chat/providers');
+  }
+
+  // Research Modes
+  async getResearchModes(): Promise<ResearchModesResponse> {
+    return this.request<ResearchModesResponse>('/api/chat/research-modes');
   }
 
   // Documents

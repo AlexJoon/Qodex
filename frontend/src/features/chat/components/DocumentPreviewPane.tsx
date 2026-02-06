@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, FileText, ZoomIn, ZoomOut, Copy, Check } from 'lucide-react';
+import { Search, FileText, ZoomIn, ZoomOut, Copy, Check, Download } from 'lucide-react';
 import { FormattedContent } from './FormattedContent';
+import { exportDocumentToPDF } from '@/shared/services/pdfExport';
 import './DocumentPreviewPane.css';
 
 interface DocumentPreviewPaneProps {
@@ -17,6 +18,7 @@ export function DocumentPreviewPane({
   const [searchTerm, setSearchTerm] = useState('');
   const [zoomLevel, setZoomLevel] = useState(100);
   const [copied, setCopied] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to highlighted chunk when it changes
@@ -69,6 +71,22 @@ export function DocumentPreviewPane({
     }
   };
 
+  const handleDownloadPDF = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      await exportDocumentToPDF({
+        filename: documentContent.filename,
+        fullContent,
+        chunks,
+      });
+    } catch (err) {
+      console.error('Failed to download PDF:', err);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className="document-preview-pane">
       {/* Document Header */}
@@ -107,6 +125,15 @@ export function DocumentPreviewPane({
           >
             {copied ? <Check size={16} /> : <Copy size={16} />}
             {copied ? 'Copied' : 'Copy'}
+          </button>
+          <button
+            onClick={handleDownloadPDF}
+            className="copy-all-btn"
+            title="Download as PDF"
+            disabled={downloading}
+          >
+            <Download size={16} />
+            {downloading ? 'Downloading...' : 'PDF'}
           </button>
         </div>
       </div>

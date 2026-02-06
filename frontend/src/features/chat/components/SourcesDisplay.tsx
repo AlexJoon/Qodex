@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileText, ChevronDown, ChevronUp, LayoutGrid } from 'lucide-react';
 import { DocumentSource } from '@/shared/types';
 import { useDocumentPreviewStore } from '@/features/documents';
+import { AllSourcesModal } from './AllSourcesModal';
 import './SourcesDisplay.css';
 
 interface SourcesDisplayProps {
@@ -11,6 +12,7 @@ interface SourcesDisplayProps {
 
 export function SourcesDisplay({ sources, maxVisible = 3 }: SourcesDisplayProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showAllSources, setShowAllSources] = useState(false);
   const { openDocumentPreview } = useDocumentPreviewStore();
 
   if (!sources || sources.length === 0) {
@@ -19,6 +21,10 @@ export function SourcesDisplay({ sources, maxVisible = 3 }: SourcesDisplayProps)
 
   const visibleSources = isExpanded ? sources : sources.slice(0, maxVisible);
   const hiddenCount = sources.length - maxVisible;
+
+  const handleSourceSelect = (source: DocumentSource) => {
+    openDocumentPreview(source.document_id || source.id, source.chunk_id);
+  };
 
   return (
     <div className="sources-display">
@@ -50,7 +56,25 @@ export function SourcesDisplay({ sources, maxVisible = 3 }: SourcesDisplayProps)
             <ChevronUp size={14} />
           </button>
         )}
+
+        {sources.length > 1 && (
+          <button
+            className="sources-view-all-btn"
+            onClick={() => setShowAllSources(true)}
+            title="View all sources in a grid"
+          >
+            <LayoutGrid size={14} />
+            View All
+          </button>
+        )}
       </div>
+
+      <AllSourcesModal
+        isOpen={showAllSources}
+        onClose={() => setShowAllSources(false)}
+        sources={sources}
+        onSourceSelect={handleSourceSelect}
+      />
     </div>
   );
 }

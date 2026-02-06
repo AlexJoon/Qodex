@@ -5,10 +5,12 @@
   gap: 12px;
 }
 
-/* Provider Toggles */
+/* Provider & Research Mode Toggles */
 .chat-input-toggles {
   display: flex;
   justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 /* Input Form */

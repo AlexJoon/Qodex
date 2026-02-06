@@ -6,6 +6,7 @@ import { useState, useMemo, memo } from 'react';
 import { SourcesDisplay } from './SourcesDisplay';
 import { SuggestedQuestions } from './SuggestedQuestions';
 import { InlineCitation } from './InlineCitation';
+import { StreamingContent } from './StreamingContent';
 import { exportMessageToPDF } from '@/shared/services/pdfExport';
 import { remarkCitations } from '@/shared/utils/remarkCitations';
 import './ChatMessage.css';
@@ -255,10 +256,10 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming, onR
   const [exporting, setExporting] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
-  // Memoize processed content to avoid re-processing on every render
+  // Skip expensive emoji processing during streaming — StreamingContent handles its own rendering
   const processedContent = useMemo(
-    () => processEmojiLists(message.content),
-    [message.content]
+    () => isStreaming ? '' : processEmojiLists(message.content),
+    [message.content, isStreaming]
   );
 
   // Create custom markdown components with citation support
@@ -382,12 +383,16 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming, onR
         </div>
 
         <div className={`message-body ${isStreaming ? 'streaming' : ''}`}>
-          <ReactMarkdown
-            remarkPlugins={remarkPlugins}
-            components={markdownComponentsWithCitations}
-          >
-            {processedContent}
-          </ReactMarkdown>
+          {isStreaming ? (
+            <StreamingContent content={message.content} />
+          ) : (
+            <ReactMarkdown
+              remarkPlugins={remarkPlugins}
+              components={markdownComponentsWithCitations}
+            >
+              {processedContent}
+            </ReactMarkdown>
+          )}
 
           {/* Show source documents for assistant messages */}
           {!isUser && message.sources && message.sources.length > 0 && (

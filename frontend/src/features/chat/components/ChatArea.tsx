@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useChatStore } from '../store';
 import { useDiscussionStore } from '@/features/discussions';
 import { useProviderStore } from '@/features/providers';
@@ -140,6 +140,21 @@ export function ChatArea({ initialMessage }: ChatAreaProps) {
     setInputValue(prompt);
   };
 
+  // Stabilize the streaming message object so it only recalculates when
+  // its actual data changes, not on every ChatArea re-render.
+  const streamingMessage = useMemo(() => {
+    if (!isStreaming || !currentStreamContent) return null;
+    return {
+      id: 'streaming',
+      content: currentStreamContent,
+      role: 'assistant' as const,
+      provider: currentStreamProvider || undefined,
+      timestamp: '',
+      sources: currentStreamSources.length > 0 ? currentStreamSources : undefined,
+      suggested_questions: currentStreamSuggestedQuestions.length > 0 ? currentStreamSuggestedQuestions : undefined,
+    };
+  }, [isStreaming, currentStreamContent, currentStreamProvider, currentStreamSources, currentStreamSuggestedQuestions]);
+
   const isEmpty = messages.length === 0 && !isStreaming;
 
   return (
@@ -184,17 +199,9 @@ export function ChatArea({ initialMessage }: ChatAreaProps) {
                 <ThinkingIndicator provider={currentStreamProvider || undefined} />
               )}
 
-              {isStreaming && currentStreamContent && (
+              {streamingMessage && (
                 <ChatMessage
-                  message={{
-                    id: 'streaming',
-                    content: currentStreamContent,
-                    role: 'assistant',
-                    provider: currentStreamProvider || undefined,
-                    timestamp: new Date().toISOString(),
-                    sources: currentStreamSources.length > 0 ? currentStreamSources : undefined,
-                    suggested_questions: currentStreamSuggestedQuestions.length > 0 ? currentStreamSuggestedQuestions : undefined,
-                  }}
+                  message={streamingMessage}
                   isStreaming
                   onQuestionClick={handleQuestionClick}
                 />

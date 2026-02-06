@@ -4,7 +4,7 @@ import { Send, Square, Mic } from 'lucide-react';
 import { useSSE } from '@/shared/hooks/useSSE';
 import { useDiscussionStore } from '@/features/discussions';
 import { ProviderToggles } from '@/features/providers';
-import { FileUpload } from './FileUpload';
+import { InputActionsDropdown } from './InputActionsDropdown';
 import './ChatInput.css';
 
 interface ChatInputProps {
@@ -96,7 +96,7 @@ export function ChatInput({ initialValue = '', onValueChange }: ChatInputProps) 
 
       <form className="chat-input-form" onSubmit={handleSubmit}>
         <div className="chat-input-box">
-          <FileUpload />
+          <InputActionsDropdown />
 
           <textarea
             ref={textareaRef}

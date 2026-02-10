@@ -31,7 +31,15 @@
 }
 
 .message-avatar.assistant {
-  background: linear-gradient(135deg, var(--gray-600), var(--gray-800));
+  background: white;
+  border: 1px solid var(--gray-200);
+  overflow: hidden;
+}
+
+.message-avatar.assistant .assistant-logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
 }
 
 /* Message Content */
@@ -199,6 +207,7 @@
   flex-shrink: 0;
 }
 
+.intent-tooltip-dot.generalist { background-color: #6b7280; }
 .intent-tooltip-dot.summarize { background-color: #3b82f6; }
 .intent-tooltip-dot.explain { background-color: #8b5cf6; }
 .intent-tooltip-dot.compare { background-color: #06b6d4; }
@@ -223,6 +232,12 @@
   background-color: #fef3c7;
   color: #92400e;
   border-color: #fde68a;
+}
+
+.message-intent.generalist {
+  background-color: #f3f4f6;
+  color: #374151;
+  border-color: #d1d5db;
 }
 
 .message-intent.summarize {

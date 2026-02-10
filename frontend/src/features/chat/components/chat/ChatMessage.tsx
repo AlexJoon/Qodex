@@ -1,6 +1,6 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { User, Bot, Copy, Check, Download, Loader2, RotateCcw } from 'lucide-react';
+import { User, Copy, Check, Download, Loader2, RotateCcw } from 'lucide-react';
 import { Message, DocumentSource } from '@/shared/types';
 import { useState, useMemo, memo } from 'react';
 import { SourcesDisplay } from '../sources/SourcesDisplay';
@@ -144,6 +144,7 @@ const providerNames: Record<string, string> = {
 };
 
 const intentLabels: Record<string, string> = {
+  generalist: 'Generalist',
   summarize: 'Summary',
   explain: 'Explainer',
   compare: 'Comparison',
@@ -155,6 +156,7 @@ const intentLabels: Record<string, string> = {
 };
 
 const intentDescriptions: Record<string, string> = {
+  generalist: 'Comprehensive, well-structured responses adapted to the complexity of the question',
   summarize: 'Structures output with key findings, methodology, implications, and limitations',
   explain: 'Breaks down concepts with definitions, analogies, and progressive complexity',
   compare: 'Analyzes dimensions of comparison with balanced, evidence-based synthesis',
@@ -166,6 +168,7 @@ const intentDescriptions: Record<string, string> = {
 };
 
 const allIntents = [
+  { key: 'generalist', label: 'Generalist', desc: 'Comprehensive answers' },
   { key: 'summarize', label: 'Summary', desc: 'Key findings & implications' },
   { key: 'explain', label: 'Explainer', desc: 'Simplified breakdowns' },
   { key: 'compare', label: 'Comparison', desc: 'Side-by-side analysis' },
@@ -318,13 +321,13 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming, onR
   return (
     <div className={`chat-message ${isUser ? 'user' : 'assistant'}`}>
       <div className={`message-avatar ${isUser ? 'user' : 'assistant'}`}>
-        {isUser ? <User size={16} /> : <Bot size={16} />}
+        {isUser ? <User size={16} /> : <img src="/qodex-logo.png" alt="Qodex" className="assistant-logo" />}
       </div>
 
       <div className="message-content">
         <div className="message-header">
           <span className="message-author">{isUser ? 'You' : 'Qodex'}</span>
-          {!isUser && message.intent && message.intent !== 'general' && (
+          {!isUser && message.intent && (
             <span className="intent-chip-wrapper">
               <span className={`message-intent ${message.intent}`}>
                 {intentLabels[message.intent] || message.intent}

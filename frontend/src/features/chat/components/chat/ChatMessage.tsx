@@ -1,12 +1,13 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import 'flowtoken/dist/styles.css';
 import { User, Copy, Check, Download, Loader2, RotateCcw } from 'lucide-react';
 import { Message, DocumentSource } from '@/shared/types';
 import { useState, useMemo, memo } from 'react';
+import { useAuthStore } from '@/features/auth';
 import { SourcesDisplay } from '../sources/SourcesDisplay';
 import { SuggestedQuestions } from '../ui/SuggestedQuestions';
 import { InlineCitation } from '../input/InlineCitation';
-import { StreamingContent } from '../input/StreamingContent';
 import { exportMessageToPDF } from '@/shared/services/pdfExport';
 import { remarkCitations } from '@/shared/utils/remarkCitations';
 import './ChatMessage.css';
@@ -255,11 +256,12 @@ const remarkPlugins = [remarkGfm, remarkCitations];
 
 export const ChatMessage = memo(function ChatMessage({ message, isStreaming, onRetry, onQuestionClick }: ChatMessageProps) {
   const isUser = message.role === 'user';
+  const displayName = useAuthStore((s) => s.user?.user_metadata?.display_name) || useAuthStore((s) => s.user?.email?.split('@')[0]) || 'You';
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
-  // Skip expensive emoji processing during streaming — StreamingContent handles its own rendering
+  // Skip expensive emoji processing during streaming — AnimatedMarkdown uses raw content
   const processedContent = useMemo(
     () => isStreaming ? '' : processEmojiLists(message.content),
     [message.content, isStreaming]
@@ -326,7 +328,7 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming, onR
 
       <div className="message-content">
         <div className="message-header">
-          <span className="message-author">{isUser ? 'You' : 'Qodex'}</span>
+          <span className="message-author">{isUser ? displayName : 'Qodex'}</span>
           {!isUser && message.intent && (
             <span className="intent-chip-wrapper">
               <span className={`message-intent ${message.intent}`}>
@@ -386,16 +388,12 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming, onR
         </div>
 
         <div className={`message-body ${isStreaming ? 'streaming' : ''}`}>
-          {isStreaming ? (
-            <StreamingContent content={message.content} />
-          ) : (
-            <ReactMarkdown
-              remarkPlugins={remarkPlugins}
-              components={markdownComponentsWithCitations}
-            >
-              {processedContent}
-            </ReactMarkdown>
-          )}
+          <ReactMarkdown
+            remarkPlugins={remarkPlugins}
+            components={markdownComponentsWithCitations}
+          >
+            {isStreaming ? message.content : processedContent}
+          </ReactMarkdown>
 
           {/* Show source documents for assistant messages */}
           {!isUser && message.sources && message.sources.length > 0 && (

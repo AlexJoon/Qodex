@@ -1,8 +1,3 @@
-/* Streaming list items (lightweight renderer) */
-.streaming-li {
-  padding-left: 1.2em;
-}
-
 /* Chat Message Container */
 .chat-message {
   display: flex;
@@ -369,6 +364,21 @@
   color: var(--gray-700);
 }
 
+/* Fade in new block elements during streaming using FlowToken keyframes.
+   React DOM reconciliation reuses existing nodes, so only newly-added
+   blocks (new paragraphs, list items, headers, etc.) trigger the animation. */
+.message-body.streaming p,
+.message-body.streaming li,
+.message-body.streaming h1,
+.message-body.streaming h2,
+.message-body.streaming h3,
+.message-body.streaming h4,
+.message-body.streaming pre,
+.message-body.streaming table,
+.message-body.streaming blockquote,
+.message-body.streaming hr {
+  animation: ft-fadeIn 0.8s ease-out;
+}
 
 .message-body p {
   margin-bottom: 12px;

@@ -26,9 +26,49 @@ interface ChatActions {
   setStreamSuggestedQuestions: (questions: string[]) => void;
   setStreamIntent: (intent: string, label: string) => void;
   finalizeStream: (messageId: string) => void;
+  gracefulStop: (messageId: string, discussionId: string) => void;
   cancelStream: () => void;
   clearMessages: () => void;
   clearError: () => void;
+}
+
+/**
+ * Clean up partial markdown so a stopped response looks complete.
+ * - Closes unclosed fenced code blocks
+ * - Trims to the last sentence boundary
+ */
+function gracefulTruncate(content: string): string {
+  if (!content || content.trim().length < 10) return content;
+
+  let text = content;
+
+  // Close unclosed fenced code blocks
+  const fenceCount = (text.match(/^```/gm) || []).length;
+  if (fenceCount % 2 !== 0) {
+    text = text.trimEnd() + '\n```';
+  }
+
+  // Find the last sentence-ending boundary
+  // Look for: sentence punctuation followed by space/newline, or double newline, or list-item newline
+  const boundaryPattern = /[.!?:;]\s|\n\n|\n(?=[-*+]\s|\d+\.\s|#{1,4}\s|```)/g;
+  let lastBoundary = -1;
+  let match;
+  while ((match = boundaryPattern.exec(text)) !== null) {
+    lastBoundary = match.index + 1; // include the punctuation character
+  }
+
+  // Only trim if we found a boundary and it's not too far back (keep at least 60% of content)
+  if (lastBoundary > 0 && lastBoundary > text.length * 0.4) {
+    text = text.slice(0, lastBoundary).trimEnd();
+  }
+
+  // Re-check code block closure after trimming
+  const finalFenceCount = (text.match(/^```/gm) || []).length;
+  if (finalFenceCount % 2 !== 0) {
+    text = text.trimEnd() + '\n```';
+  }
+
+  return text;
 }
 
 type ChatStore = ChatState & ChatActions;
@@ -136,6 +176,50 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       currentStreamSuggestedQuestions: [],
       currentStreamIntent: null,
     }));
+  },
+
+  gracefulStop: (messageId: string, discussionId: string) => {
+    const state = get();
+    const cleaned = gracefulTruncate(state.currentStreamContent);
+
+    // Nothing streamed yet — just discard
+    if (!cleaned.trim()) {
+      set({
+        isStreaming: false,
+        currentStreamContent: '',
+        currentStreamProvider: null,
+        currentStreamSources: [],
+        currentStreamSuggestedQuestions: [],
+        currentStreamIntent: null,
+      });
+      return;
+    }
+
+    const provider = state.currentStreamProvider || undefined;
+
+    const assistantMessage: Message = {
+      id: messageId,
+      content: cleaned,
+      role: 'assistant' as MessageRole,
+      provider,
+      timestamp: new Date().toISOString(),
+      sources: state.currentStreamSources.length > 0 ? state.currentStreamSources : undefined,
+      suggested_questions: state.currentStreamSuggestedQuestions.length > 0 ? state.currentStreamSuggestedQuestions : undefined,
+      intent: state.currentStreamIntent?.intent || undefined,
+    };
+
+    set(state => ({
+      messages: [...state.messages, assistantMessage],
+      isStreaming: false,
+      currentStreamContent: '',
+      currentStreamProvider: null,
+      currentStreamSources: [],
+      currentStreamSuggestedQuestions: [],
+      currentStreamIntent: null,
+    }));
+
+    // Persist to backend so the message survives navigation
+    api.addMessage(discussionId, cleaned, 'assistant' as MessageRole, provider).catch(() => {});
   },
 
   cancelStream: () => {

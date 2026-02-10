@@ -272,7 +272,7 @@ function EmptyState() {
       <h1 className="empty-state-title">
         <RotatingText
           texts={[
-            "What would you like to explore today?",
+            "What can I help you find?",
             "What teaching ideas can I help spark?",
             "What would you like to discover?",
             "How can I support your teaching today?",

@@ -2,7 +2,6 @@ import { Modal } from '@/components/ui';
 import { DocumentPreviewPane } from '../sources/DocumentPreviewPane';
 import { DocumentChat } from '../chat/DocumentChat';
 import { useDocumentPreviewStore } from '@/features/documents';
-import { useProviderStore } from '@/features/providers';
 import { X } from 'lucide-react';
 import './DocumentPreviewModal.css';
 
@@ -16,8 +15,6 @@ export function DocumentPreviewModal() {
     closeDocumentPreview,
     clearError
   } = useDocumentPreviewStore();
-
-  const { activeProvider } = useProviderStore();
 
   if (!previewDocument) return null;
 
@@ -62,7 +59,7 @@ export function DocumentPreviewModal() {
             <div className="document-chat-right">
               <DocumentChat
                 documentId={previewDocument.id}
-                provider={activeProvider}
+                documentContent={documentContent?.full_content || ''}
               />
             </div>
           </div>

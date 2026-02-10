@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.core.config import get_settings
-from app.api.routes import chat_router, discussions_router, documents_router
+from app.api.routes import chat_router, discussions_router, documents_router, attachments_router
 
 # Import providers to register them
 from app.providers import (
@@ -60,6 +60,7 @@ app.add_middleware(
 app.include_router(chat_router)
 app.include_router(discussions_router)
 app.include_router(documents_router)
+app.include_router(attachments_router)
 
 
 @app.get("/")

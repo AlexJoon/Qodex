@@ -9,6 +9,7 @@ import { ChatHeader } from './ChatHeader';
 import { RotatingText } from '../ui/RotatingText';
 import { ThinkingIndicator } from '../ui/ThinkingIndicator';
 import { DocumentPreviewModal } from '../modals/DocumentPreviewModal';
+import { FilePreviewModal } from '../attachments/FilePreviewModal';
 import { FileText, BookOpen, FlaskConical, Users, Video, Lightbulb, Microscope, BookMarked, GraduationCap, ArrowUpRight } from 'lucide-react';
 import './ChatArea.css';
 
@@ -224,6 +225,9 @@ export function ChatArea({ initialMessage }: ChatAreaProps) {
       
       {/* Document Preview Modal */}
       <DocumentPreviewModal />
+
+      {/* Attachment File Preview Modal */}
+      <FilePreviewModal />
     </div>
   );
 }

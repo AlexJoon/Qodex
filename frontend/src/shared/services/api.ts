@@ -7,6 +7,8 @@ import {
   Message,
   MessageRole,
   ResearchModesResponse,
+  AttachmentSummary,
+  AttachmentDetail,
 } from '@/shared/types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -166,6 +168,43 @@ class ApiService {
     }
 
     return response;
+  }
+
+  // Attachments (conversation-scoped files)
+  async uploadAttachment(discussionId: string, file: File): Promise<AttachmentSummary> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(
+      `${this.baseUrl}/api/discussions/${discussionId}/attachments`,
+      { method: 'POST', body: formData }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+      throw new Error(error.detail || `HTTP error ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getAttachments(discussionId: string): Promise<AttachmentSummary[]> {
+    return this.request<AttachmentSummary[]>(
+      `/api/discussions/${discussionId}/attachments`
+    );
+  }
+
+  async getAttachmentDetail(discussionId: string, attachmentId: string): Promise<AttachmentDetail> {
+    return this.request<AttachmentDetail>(
+      `/api/discussions/${discussionId}/attachments/${attachmentId}`
+    );
+  }
+
+  async deleteAttachment(discussionId: string, attachmentId: string): Promise<void> {
+    await this.request(
+      `/api/discussions/${discussionId}/attachments/${attachmentId}`,
+      { method: 'DELETE' }
+    );
   }
 
   // Chat stream URL builder

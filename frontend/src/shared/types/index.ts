@@ -89,12 +89,43 @@ export interface SearchResult {
   filename: string;
 }
 
+// Attachment types (conversation-scoped files, NOT indexed in Pinecone)
+export interface AttachmentSummary {
+  id: string;
+  discussion_id: string;
+  filename: string;
+  file_content_type: string;
+  file_size: number;
+  chunk_count: number;
+  created_at: string;
+}
+
+export interface AttachmentChunk {
+  id: string;
+  content: string;
+  chunk_index: number;
+  content_type: string;
+}
+
+export interface AttachmentDetail {
+  id: string;
+  discussion_id: string;
+  filename: string;
+  file_content_type: string;
+  file_size: number;
+  chunk_count: number;
+  created_at: string;
+  full_text: string;
+  chunks: AttachmentChunk[];
+}
+
 // Chat types
 export interface ChatRequest {
   discussion_id: string;
   message: string;
   provider: ProviderName;
   document_ids?: string[];
+  attachment_ids?: string[];
   temperature?: number;
   max_tokens?: number;
   research_mode?: ResearchMode;

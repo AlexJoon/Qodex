@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { Share2, Download, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Share2, Download, Loader2, Paperclip } from 'lucide-react';
 import { ShareModal } from '../modals/ShareModal';
+import { AttachmentPanel } from '../attachments/AttachmentPanel';
 import { exportConversationToPDF } from '@/shared/services/pdfExport';
 import { useChatStore } from '../../store';
+import { useAttachmentStore } from '@/features/attachments/store';
 import './ChatHeader.css';
 
 interface ChatHeaderProps {
@@ -12,8 +14,18 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ discussionId, discussionTitle }: ChatHeaderProps) {
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showAttachments, setShowAttachments] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const { messages } = useChatStore();
+  const { attachments, fetchAttachments, reset } = useAttachmentStore();
+
+  // Load attachments when discussion changes
+  useEffect(() => {
+    reset();
+    if (discussionId) {
+      fetchAttachments(discussionId);
+    }
+  }, [discussionId, fetchAttachments, reset]);
 
   const handleExport = async () => {
     if (isExporting || messages.length === 0) return;
@@ -37,12 +49,23 @@ export function ChatHeader({ discussionId, discussionTitle }: ChatHeaderProps) {
         <div className="chat-header-actions">
           <button
             className="chat-header-btn"
+            onClick={() => setShowAttachments(!showAttachments)}
+            title="Conversation attachments"
+          >
+            <Paperclip size={18} />
+            <span className="visually-hidden">Attachments</span>
+            {attachments.length > 0 && (
+              <span className="chat-header-badge">{attachments.length}</span>
+            )}
+          </button>
+          <button
+            className="chat-header-btn"
             onClick={handleExport}
             disabled={isExporting || messages.length === 0}
             title="Export conversation to PDF"
           >
             {isExporting ? <Loader2 size={18} className="spinning" /> : <Download size={18} />}
-            <span>Export</span>
+            <span className="visually-hidden">Export</span>
           </button>
           <button
             className="chat-header-btn"
@@ -50,9 +73,17 @@ export function ChatHeader({ discussionId, discussionTitle }: ChatHeaderProps) {
             title="Share conversation"
           >
             <Share2 size={18} />
-            <span>Share</span>
+            <span className="visually-hidden">Share</span>
           </button>
         </div>
+
+        {showAttachments && (
+          <AttachmentPanel
+            discussionId={discussionId}
+            isOpen={showAttachments}
+            onClose={() => setShowAttachments(false)}
+          />
+        )}
       </div>
 
       <ShareModal

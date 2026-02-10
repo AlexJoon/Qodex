@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BadgePlus, Paperclip, Search, Sparkles, BookOpen, X, FileText, Upload, Check } from 'lucide-react';
-import { useDocumentStore } from '@/features/documents';
+import { useAttachmentStore } from '@/features/attachments/store';
+import { useDiscussionStore } from '@/features/discussions';
 import { useResearchModeStore } from '@/features/research';
 import { ResearchMode } from '@/shared/types';
 import './InputActionsDropdown.css';
@@ -21,21 +23,22 @@ const MODE_CONFIG: Record<ResearchMode, { icon: typeof Search; label: string; de
 };
 
 export function InputActionsDropdown() {
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [showDocuments, setShowDocuments] = useState(false);
+  const [showAttachments, setShowAttachments] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { activeDiscussionId, createDiscussion } = useDiscussionStore();
+
   const {
-    documents,
-    selectedDocumentIds,
-    isLoading,
+    attachments,
+    isUploading,
     uploadProgress,
-    uploadDocument,
-    toggleDocumentSelection,
-    deleteDocument,
-  } = useDocumentStore();
+    uploadAttachment,
+    deleteAttachment,
+  } = useAttachmentStore();
 
   const { activeMode, setActiveMode, modes } = useResearchModeStore();
 
@@ -52,6 +55,14 @@ export function InputActionsDropdown() {
     return true;
   };
 
+  /** Ensure a discussion exists, auto-creating + navigating if needed. */
+  const ensureDiscussion = async (): Promise<string> => {
+    if (activeDiscussionId) return activeDiscussionId;
+    const newDiscussion = await createDiscussion();
+    navigate(`/chat/${newDiscussion.id}`);
+    return newDiscussion.id;
+  };
+
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
@@ -61,8 +72,9 @@ export function InputActionsDropdown() {
     if (!validateFile(file)) return;
 
     try {
-      await uploadDocument(file);
-      setShowDocuments(true);
+      const discussionId = await ensureDiscussion();
+      await uploadAttachment(discussionId, file);
+      setShowAttachments(true);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -83,13 +95,22 @@ export function InputActionsDropdown() {
     setIsDragging(false);
   };
 
-  const handleAddFiles = () => {
-    if (documents.length > 0) {
-      setShowDocuments(true);
+  const handleAttachFiles = () => {
+    if (attachments.length > 0) {
+      setShowAttachments(true);
       setIsOpen(false);
     } else {
       fileInputRef.current?.click();
       setIsOpen(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    if (!activeDiscussionId) return;
+    try {
+      await deleteAttachment(activeDiscussionId, attachmentId);
+    } catch (err) {
+      setError((err as Error).message);
     }
   };
 
@@ -111,8 +132,8 @@ export function InputActionsDropdown() {
         title="Actions"
       >
         <BadgePlus size={20} />
-        {(selectedDocumentIds.length > 0) && (
-          <span className="input-actions-badge">{selectedDocumentIds.length}</span>
+        {attachments.length > 0 && (
+          <span className="input-actions-badge">{attachments.length}</span>
         )}
       </button>
 
@@ -140,19 +161,19 @@ export function InputActionsDropdown() {
         <>
           <div className="input-actions-backdrop" onClick={() => setIsOpen(false)} />
           <div className="input-actions-dropdown">
-            {/* File upload option */}
+            {/* File attachment option */}
             <button
               type="button"
               className="input-actions-item"
-              onClick={handleAddFiles}
+              onClick={handleAttachFiles}
             >
               <Paperclip size={18} />
               <div className="input-actions-item-content">
-                <span className="input-actions-item-label">Add files</span>
-                <span className="input-actions-item-desc">Upload documents for context</span>
+                <span className="input-actions-item-label">Attach files</span>
+                <span className="input-actions-item-desc">Add context to this conversation</span>
               </div>
-              {selectedDocumentIds.length > 0 && (
-                <span className="input-actions-item-count">{selectedDocumentIds.length}</span>
+              {attachments.length > 0 && (
+                <span className="input-actions-item-count">{attachments.length}</span>
               )}
             </button>
 
@@ -186,32 +207,24 @@ export function InputActionsDropdown() {
         </>
       )}
 
-      {/* Documents panel */}
-      {showDocuments && documents.length > 0 && (
+      {/* Attachments panel */}
+      {showAttachments && attachments.length > 0 && (
         <>
-          <div className="input-actions-backdrop" onClick={() => setShowDocuments(false)} />
+          <div className="input-actions-backdrop" onClick={() => setShowAttachments(false)} />
           <div className="input-actions-documents">
             <div className="input-actions-documents-header">
-              <span>Documents</span>
-              <button onClick={() => setShowDocuments(false)} type="button">
+              <span>Conversation Attachments</span>
+              <button onClick={() => setShowAttachments(false)} type="button">
                 <X size={16} />
               </button>
             </div>
 
             <div className="input-actions-documents-list">
-              {documents.map((doc) => (
-                <div
-                  key={doc.id}
-                  className={`input-actions-doc-item ${selectedDocumentIds.includes(doc.id) ? 'selected' : ''}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedDocumentIds.includes(doc.id)}
-                    onChange={() => toggleDocumentSelection(doc.id)}
-                  />
+              {attachments.map((att) => (
+                <div key={att.id} className="input-actions-doc-item selected">
                   <FileText size={16} />
-                  <span className="input-actions-doc-name">{doc.filename}</span>
-                  <button onClick={() => deleteDocument(doc.id)} type="button">
+                  <span className="input-actions-doc-name">{att.filename}</span>
+                  <button onClick={() => handleDeleteAttachment(att.id)} type="button">
                     <X size={14} />
                   </button>
                 </div>
@@ -226,14 +239,14 @@ export function InputActionsDropdown() {
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload size={18} />
-              <span>Drop file or click to upload</span>
+              <span>Drop file or click to attach</span>
             </div>
           </div>
         </>
       )}
 
       {/* Upload Progress */}
-      {isLoading && uploadProgress > 0 && (
+      {isUploading && uploadProgress > 0 && (
         <div className="input-actions-progress">
           <div className="input-actions-progress-bar">
             <div

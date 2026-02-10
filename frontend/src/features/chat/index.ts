@@ -24,3 +24,5 @@ export { FormattedContent } from './components/sources/FormattedContent';
 export { SourceCard } from './components/sources/SourceCard';
 export { SourcesGrid } from './components/sources/SourcesGrid';
 export { AllSourcesModal } from './components/modals/AllSourcesModal';
+export { AttachmentPanel } from './components/attachments/AttachmentPanel';
+export { FilePreviewModal } from './components/attachments/FilePreviewModal';

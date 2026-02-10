@@ -255,7 +255,7 @@ export function Sidebar() {
                   setShowSettingsMenu(!showSettingsMenu);
                 }}
               >
-                <Settings size={16} />
+                <Settings size={18} />
               </button>
               {showSettingsMenu && (
                 <div className="sidebar-settings-menu">

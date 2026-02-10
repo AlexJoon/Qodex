@@ -36,13 +36,6 @@ export const useDiscussionStore = create<DiscussionStore>((set, get) => ({
     try {
       const discussions = await api.getDiscussions();
       set({ discussions, isLoading: false });
-
-      // Set first discussion as active if none active
-      const state = get();
-      if (!state.activeDiscussionId && discussions.length > 0) {
-        const active = discussions.find(d => d.is_active) || discussions[0];
-        set({ activeDiscussionId: active.id });
-      }
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
     }

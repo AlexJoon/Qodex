@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, MessageSquare, Bot, User, ArrowUpRight, BookOpen } from 'lucide-react';
+import { Send, MessageSquare, Bot, ArrowUpRight, BookOpen } from 'lucide-react';
 import { useDocumentPreviewStore } from '@/features/documents';
+import { useAuthStore } from '@/features/auth';
+import { getAvatarIcon } from '@/shared/constants/avatarIcons';
 import { FindMaterials } from './FindMaterials';
 import './DocumentChat.css';
 
@@ -13,6 +15,7 @@ export function DocumentChat({ documentId, documentContent }: DocumentChatProps)
   const [inputValue, setInputValue] = useState('');
   const [activeTab, setActiveTab] = useState<'chat' | 'materials'>('materials');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const AvatarIcon = getAvatarIcon(useAuthStore((s) => s.user?.user_metadata?.avatar_icon));
 
   const {
     documentChatMessages,
@@ -117,7 +120,7 @@ export function DocumentChat({ documentId, documentContent }: DocumentChatProps)
               >
                 <div className="message-avatar">
                   {message.role === 'user' ? (
-                    <User size={16} />
+                    <AvatarIcon size={16} />
                   ) : (
                     <Bot size={16} />
                   )}

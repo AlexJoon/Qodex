@@ -1,7 +1,8 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import 'flowtoken/dist/styles.css';
-import { User, Copy, Check, Download, Loader2, RotateCcw } from 'lucide-react';
+import { Copy, Check, Download, Loader2, RotateCcw } from 'lucide-react';
+import { getAvatarIcon } from '@/shared/constants/avatarIcons';
 import { Message, DocumentSource } from '@/shared/types';
 import { useState, useMemo, memo } from 'react';
 import { useAuthStore } from '@/features/auth';
@@ -257,6 +258,7 @@ const remarkPlugins = [remarkGfm, remarkCitations];
 export const ChatMessage = memo(function ChatMessage({ message, isStreaming, onRetry, onQuestionClick }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const displayName = useAuthStore((s) => s.user?.user_metadata?.display_name) || useAuthStore((s) => s.user?.email?.split('@')[0]) || 'You';
+  const AvatarIcon = getAvatarIcon(useAuthStore((s) => s.user?.user_metadata?.avatar_icon));
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -323,7 +325,7 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming, onR
   return (
     <div className={`chat-message ${isUser ? 'user' : 'assistant'}`}>
       <div className={`message-avatar ${isUser ? 'user' : 'assistant'}`}>
-        {isUser ? <User size={16} /> : <img src="/qodex-logo.png" alt="Qodex" className="assistant-logo" />}
+        {isUser ? <AvatarIcon size={16} /> : <img src="/qodex-logo.png" alt="Qodex" className="assistant-logo" />}
       </div>
 
       <div className="message-content">

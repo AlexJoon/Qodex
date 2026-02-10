@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, FormEvent, KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, Square, Mic } from 'lucide-react';
+import { ArrowUp, Square, AudioLines } from 'lucide-react';
 import { useSSE } from '@/shared/hooks/useSSE';
+import { useChatStore } from '@/features/chat';
 import { useDiscussionStore } from '@/features/discussions';
 import { ProviderToggles } from '@/features/providers';
 import { InputActionsDropdown } from '../input/InputActionsDropdown';
@@ -18,6 +19,7 @@ export function ChatInput({ initialValue = '', onValueChange }: ChatInputProps) 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { sendMessage, stopStream, isStreaming } = useSSE();
   const { activeDiscussionId, createDiscussion } = useDiscussionStore();
+  const { skipNextMessageLoad } = useChatStore();
 
   useEffect(() => {
     if (initialValue !== input) {
@@ -48,7 +50,8 @@ export function ChatInput({ initialValue = '', onValueChange }: ChatInputProps) 
     if (!discussionId) {
       const newDiscussion = await createDiscussion();
       discussionId = newDiscussion.id;
-      // Navigate to the new discussion URL
+      // Prevent ChatArea from overwriting messages for this fresh discussion
+      skipNextMessageLoad();
       navigate(`/chat/${discussionId}`);
     }
 
@@ -110,7 +113,7 @@ export function ChatInput({ initialValue = '', onValueChange }: ChatInputProps) 
           />
 
           <button type="button" className="input-action-btn" title="Voice input">
-            <Mic size={20} />
+            <AudioLines size={20} />
           </button>
 
           {isStreaming ? (
@@ -129,7 +132,7 @@ export function ChatInput({ initialValue = '', onValueChange }: ChatInputProps) 
               disabled={!input.trim()}
               title="Send message"
             >
-              <Send size={16} />
+              <ArrowUp size={18} />
             </button>
           )}
         </div>

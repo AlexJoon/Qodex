@@ -5,6 +5,7 @@ import { useChatStore } from '@/features/chat';
 import { useDiscussionStore } from '@/features/discussions';
 import { useProviderStore } from '@/features/providers';
 import { useDocumentStore } from '@/features/documents';
+import { useAttachmentStore } from '@/features/attachments/store';
 import { useResearchModeStore } from '@/features/research';
 import { useChunkBuffer } from '@/shared/hooks/useChunkBuffer';
 import { ProviderName } from '@/shared/types';
@@ -19,6 +20,7 @@ export function useSSE() {
   const { activeDiscussionId, updateDiscussionTitle } = useDiscussionStore();
   const { activeProvider } = useProviderStore();
   const { selectedDocumentIds } = useDocumentStore();
+  const { attachments } = useAttachmentStore();
   const { activeMode } = useResearchModeStore();
 
   const sendMessage = useCallback(
@@ -30,7 +32,8 @@ export function useSSE() {
         const { createDiscussion } = useDiscussionStore.getState();
         const newDiscussion = await createDiscussion();
         targetDiscussionId = newDiscussion.id;
-        // Navigate to the new discussion URL
+        // Prevent ChatArea from overwriting messages for this fresh discussion
+        useChatStore.getState().skipNextMessageLoad();
         navigate(`/chat/${targetDiscussionId}`, { replace: true });
       }
 
@@ -50,11 +53,13 @@ export function useSSE() {
       messageIdRef.current = crypto.randomUUID();
 
       try {
+        const attachmentIds = attachments.map((a) => a.id);
         const stream = sseClient.streamChat({
           discussion_id: targetDiscussionId,
           message: content,
           provider: selectedProvider,
           document_ids: selectedDocumentIds.length > 0 ? selectedDocumentIds : undefined,
+          attachment_ids: attachmentIds.length > 0 ? attachmentIds : undefined,
           research_mode: activeMode,
         });
 
@@ -89,6 +94,7 @@ export function useSSE() {
       activeDiscussionId,
       activeProvider,
       selectedDocumentIds,
+      attachments,
       activeMode,
       addMessage,
       startStream,

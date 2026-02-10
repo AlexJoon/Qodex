@@ -12,12 +12,14 @@ interface ChatState {
   currentStreamIntent: { intent: string; label: string } | null;
   error: string | null;
   isLoadingMessages: boolean;
+  _skipNextMessageLoad: boolean;
 }
 
 interface ChatActions {
   setMessages: (messages: Message[]) => void;
   addMessage: (message: Message) => void;
   loadMessagesForDiscussion: (discussionId: string | null) => Promise<void>;
+  skipNextMessageLoad: () => void;
   startStream: (provider: string) => void;
   appendToStream: (chunk: string) => void;
   setStreamSources: (sources: DocumentSource[]) => void;
@@ -43,6 +45,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   currentStreamIntent: null,
   error: null,
   isLoadingMessages: false,
+  _skipNextMessageLoad: false,
 
   // Actions
   setMessages: (messages: Message[]) => {
@@ -55,6 +58,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       return;
     }
 
+    // Skip if a new discussion was just created — messages are managed by sendMessage
+    if (get()._skipNextMessageLoad) {
+      set({ _skipNextMessageLoad: false });
+      return;
+    }
+
     set({ isLoadingMessages: true, error: null });
     try {
       const discussion = await api.getDiscussion(discussionId);
@@ -62,6 +71,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     } catch (error) {
       set({ error: (error as Error).message, isLoadingMessages: false });
     }
+  },
+
+  skipNextMessageLoad: () => {
+    set({ _skipNextMessageLoad: true });
   },
 
   addMessage: (message: Message) => {

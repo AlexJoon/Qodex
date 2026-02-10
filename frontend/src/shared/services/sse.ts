@@ -1,5 +1,6 @@
 import { ChatRequest, SSEEvent } from '../types';
 import { api } from './api';
+import { supabase } from './supabase';
 
 export class SSEClient {
   private abortController: AbortController | null = null;
@@ -10,11 +11,19 @@ export class SSEClient {
 
     this.abortController = new AbortController();
 
+    // Get auth token for the stream request
+    const { data: { session } } = await supabase.auth.getSession();
+    const authHeaders: Record<string, string> = {};
+    if (session?.access_token) {
+      authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
     try {
       const response = await fetch(api.getStreamUrl(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders,
         },
         body: JSON.stringify(request),
         signal: this.abortController.signal,

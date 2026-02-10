@@ -1,0 +1,170 @@
+.auth-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0 4px;
+}
+
+.auth-logo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.auth-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--gray-900);
+  margin: 0;
+  text-align: center;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-field label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-700);
+}
+
+.auth-field input {
+  padding: 10px 12px;
+  border: 1px solid var(--gray-300);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--gray-900);
+  background: var(--color-white);
+  transition: border-color var(--transition-fast);
+  outline: none;
+  font-family: inherit;
+}
+
+.auth-field input:focus {
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.auth-field input::placeholder {
+  color: var(--gray-400);
+}
+
+.auth-error {
+  padding: 10px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: var(--color-error);
+  font-size: 13px;
+}
+
+.auth-submit {
+  padding: 10px 16px;
+  background: var(--brand-600);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  font-family: inherit;
+}
+
+.auth-submit:hover:not(:disabled) {
+  background: var(--brand-700);
+}
+
+.auth-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-toggle {
+  text-align: center;
+  font-size: 13px;
+  color: var(--gray-500);
+}
+
+.auth-toggle button {
+  background: none;
+  border: none;
+  color: var(--brand-600);
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.auth-toggle button:hover {
+  text-decoration: underline;
+}
+
+/* Email confirmation screen */
+.auth-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.auth-confirm-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--brand-50, #eff6ff);
+  color: var(--brand-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-confirm-text {
+  font-size: 14px;
+  color: var(--gray-600);
+  text-align: center;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.auth-confirm-text strong {
+  color: var(--gray-900);
+}
+
+.auth-confirm .auth-submit {
+  width: 100%;
+}
+
+/* Loading spinner for auth initialization */
+.auth-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100%;
+}
+
+.auth-loading .spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--gray-200);
+  border-top-color: var(--brand-500);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

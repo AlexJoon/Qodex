@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { ChatArea } from '@/features/chat';
 import { useDiscussionStore } from '@/features/discussions';
 import { useDocumentStore } from '@/features/documents';
+import { useAuthStore, AuthModal } from '@/features/auth';
 import './App.css';
 
 function ChatPage() {
@@ -35,10 +36,11 @@ function ChatPage() {
 
 function AppLayout() {
   const { fetchDocuments } = useDocumentStore();
+  const { user } = useAuthStore();
 
   useEffect(() => {
-    fetchDocuments();
-  }, [fetchDocuments]);
+    if (user) fetchDocuments();
+  }, [fetchDocuments, user]);
 
   return (
     <div className="app-layout">
@@ -55,9 +57,24 @@ function AppLayout() {
 }
 
 function App() {
+  const { user, isLoading, initialize } = useAuthStore();
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  if (isLoading) {
+    return (
+      <div className="auth-loading">
+        <div className="spinner" />
+      </div>
+    );
+  }
+
   return (
     <BrowserRouter>
       <AppLayout />
+      <AuthModal isOpen={!user} />
     </BrowserRouter>
   );
 }

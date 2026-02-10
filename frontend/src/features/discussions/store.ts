@@ -18,6 +18,7 @@ interface DiscussionActions {
   updateDiscussionTitle: (id: string, title: string) => Promise<void>;
   getActiveDiscussion: () => Discussion | undefined;
   clearError: () => void;
+  reset: () => void;
 }
 
 type DiscussionStore = DiscussionState & DiscussionActions;
@@ -117,4 +118,6 @@ export const useDiscussionStore = create<DiscussionStore>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  reset: () => set({ discussions: [], activeDiscussionId: null, isLoading: false, error: null }),
 }));

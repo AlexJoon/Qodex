@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { SquarePen, MessageSquare, Settings, User, Trash2, PanelLeftClose, PanelLeft, MoreVertical, Check, Copy, Home, LogOut, Sparkles, Compass, GraduationCap, Mail } from 'lucide-react';
 import { useDiscussionStore } from '@/features/discussions';
 import { useChatStore } from '@/features/chat';
+import { useAuthStore } from '@/features/auth';
 import { Discussion } from '@/shared/types';
 import logo from '../../assets/qodex-logo.png';
 import { SampleQuestionsDropdown } from './SampleQuestionsDropdown';
@@ -30,10 +31,11 @@ export function Sidebar() {
     setActiveDiscussionId,
   } = useDiscussionStore();
   const { clearMessages } = useChatStore();
+  const { user, signOut } = useAuthStore();
 
   useEffect(() => {
-    fetchDiscussions();
-  }, [fetchDiscussions]);
+    if (user) fetchDiscussions();
+  }, [fetchDiscussions, user]);
 
   // Close settings menu when clicking outside
   useEffect(() => {
@@ -84,9 +86,9 @@ export function Sidebar() {
     navigate('/chat', { state: { initialMessage: question } });
   };
 
-  const handleLogout = () => {
-    console.log('Logout clicked');
+  const handleLogout = async () => {
     setShowSettingsMenu(false);
+    await signOut();
   };
 
   const handleSelectDiscussion = (id: string) => {
@@ -242,8 +244,8 @@ export function Sidebar() {
           </div>
           {!isCollapsed && (
             <div className="sidebar-user-info">
-              <span className="sidebar-user-name">User</span>
-              <span className="sidebar-user-plan">Educator</span>
+              <span className="sidebar-user-name">{user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'User'}</span>
+              <span className="sidebar-user-plan">{user?.email || 'Educator'}</span>
             </div>
           )}
           {!isCollapsed && (
@@ -351,8 +353,8 @@ function ConversationItem({ discussion, isActive, onSelect, onDelete, onActivate
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const text = discussion.messages.map(m => `${m.role}: ${m.content}`).join('\n\n');
-    navigator.clipboard.writeText(text);
+    const url = `${window.location.origin}/chat/${discussion.id}`;
+    navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => {
       setCopied(false);
@@ -362,7 +364,7 @@ function ConversationItem({ discussion, isActive, onSelect, onDelete, onActivate
 
   const handleActivate = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onActivate();
+    onSelect();
     setShowMenu(false);
   };
 

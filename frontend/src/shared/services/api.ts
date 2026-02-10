@@ -10,8 +10,17 @@ import {
   AttachmentSummary,
   AttachmentDetail,
 } from '@/shared/types';
+import { supabase } from './supabase';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    return { Authorization: `Bearer ${session.access_token}` };
+  }
+  return {};
+}
 
 class ApiService {
   private baseUrl: string;
@@ -24,9 +33,11 @@ class ApiService {
     endpoint: string,
     options?: RequestInit
   ): Promise<T> {
+    const authHeaders = await getAuthHeaders();
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders,
         ...options?.headers,
       },
       ...options,
@@ -114,9 +125,11 @@ class ApiService {
   async uploadDocument(file: File): Promise<Document> {
     const formData = new FormData();
     formData.append('file', file);
+    const authHeaders = await getAuthHeaders();
 
     const response = await fetch(`${this.baseUrl}/api/documents/upload`, {
       method: 'POST',
+      headers: { ...authHeaders },
       body: formData,
     });
 
@@ -154,10 +167,12 @@ class ApiService {
   }
 
   async chatWithDocument(id: string, message: string, provider: string): Promise<Response> {
+    const authHeaders = await getAuthHeaders();
     const response = await fetch(`${this.baseUrl}/api/documents/${id}/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders,
       },
       body: JSON.stringify({ message, provider }),
     });
@@ -174,10 +189,11 @@ class ApiService {
   async uploadAttachment(discussionId: string, file: File): Promise<AttachmentSummary> {
     const formData = new FormData();
     formData.append('file', file);
+    const authHeaders = await getAuthHeaders();
 
     const response = await fetch(
       `${this.baseUrl}/api/discussions/${discussionId}/attachments`,
-      { method: 'POST', body: formData }
+      { method: 'POST', headers: { ...authHeaders }, body: formData }
     );
 
     if (!response.ok) {

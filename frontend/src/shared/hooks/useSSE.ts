@@ -112,8 +112,11 @@ export function useSSE() {
   const stopStream = useCallback(() => {
     flushChunks();
     sseClient.cancel();
-    cancelStream();
-  }, [flushChunks, cancelStream]);
+    const discussionId = useDiscussionStore.getState().activeDiscussionId;
+    if (discussionId) {
+      useChatStore.getState().gracefulStop(messageIdRef.current, discussionId);
+    }
+  }, [flushChunks]);
 
   return {
     sendMessage,

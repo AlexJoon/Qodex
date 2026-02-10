@@ -8,13 +8,14 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  hideCloseButton?: boolean;
 }
 
-export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
-  // Close on escape key
+export function Modal({ isOpen, onClose, title, children, size = 'md', hideCloseButton = false }: ModalProps) {
+  // Close on escape key (unless close is hidden)
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !hideCloseButton) onClose();
     };
 
     if (isOpen) {
@@ -26,24 +27,28 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = '';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, hideCloseButton]);
 
   if (!isOpen) return null;
 
   return (
     <div className="modal-overlay">
       {/* Backdrop */}
-      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-backdrop" onClick={hideCloseButton ? undefined : onClose} />
 
       {/* Modal content */}
       <div className={`modal-container modal-${size}`}>
         {/* Header */}
-        <div className="modal-header">
-          <h2 className="modal-title">{title}</h2>
-          <button onClick={onClose} className="modal-close-btn">
-            <X size={20} />
-          </button>
-        </div>
+        {(title || !hideCloseButton) && (
+          <div className="modal-header">
+            <h2 className="modal-title">{title}</h2>
+            {!hideCloseButton && (
+              <button onClick={onClose} className="modal-close-btn">
+                <X size={20} />
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Content */}
         <div className="modal-content">

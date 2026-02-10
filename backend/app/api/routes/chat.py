@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional, Tuple
@@ -8,6 +8,7 @@ import time
 import json
 import asyncio
 import logging
+import re
 
 from app.core.config import get_settings
 from app.core.research_modes import (
@@ -20,12 +21,118 @@ from app.models import Message, MessageRole, DocumentSource
 from app.providers import ProviderRegistry
 from app.services.document_service import get_document_service
 from app.services.attachment_service import get_attachment_service
+from app.services.discussion_service import get_discussion_service
 from app.utils.streaming import create_sse_response, format_sse_event
 from app.services.intent_classifier import classify_intent
-from app.api.routes.discussions import get_discussions_storage
+from app.auth import get_current_user_id
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 logger = logging.getLogger(__name__)
+
+_CITATION_RE = re.compile(r'\[\d+\]')
+
+# Minimum cosine similarity to include a source in context
+_MIN_SCORE = 0.45
+
+
+def _match_documents_by_filename(query: str, documents) -> Optional[List[str]]:
+    """Pre-filter documents by matching query terms against filenames.
+
+    If the query contains words that closely match a filename, restrict the
+    Pinecone search to those documents. This prevents structurally similar
+    but content-irrelevant documents from polluting the results.
+
+    Returns a list of document_ids if matches are found, otherwise None
+    (meaning: search across all documents).
+    """
+    if not documents:
+        return None
+
+    query_lower = query.lower()
+    # Tokenize query into meaningful words (3+ chars, skip stop words)
+    stop_words = {
+        "the", "and", "for", "are", "but", "not", "you", "all", "can",
+        "had", "her", "was", "one", "our", "out", "has", "his", "how",
+        "its", "may", "new", "now", "old", "see", "way", "who", "did",
+        "get", "let", "say", "she", "too", "use", "what", "when", "where",
+        "which", "while", "with", "this", "that", "from", "about", "some",
+        "them", "then", "than", "into", "over", "such", "list", "give",
+        "tell", "show", "find", "readings", "documents", "document",
+        "syllabus", "syllabi", "course", "class", "what", "does",
+    }
+    query_words = [
+        w for w in re.findall(r'[a-z]+', query_lower)
+        if len(w) >= 3 and w not in stop_words
+    ]
+
+    if not query_words:
+        return None
+
+    matched_ids = []
+    for doc in documents:
+        fname_lower = doc.filename.lower()
+        # Strip extension and split filename into tokens
+        fname_base = re.sub(r'\.[^.]+$', '', fname_lower)
+        fname_tokens = set(re.findall(r'[a-z]+', fname_base))
+
+        for qw in query_words:
+            # Match if query word appears as a substring in the filename
+            if qw in fname_lower or any(qw in ft for ft in fname_tokens):
+                matched_ids.append(doc.id)
+                break
+
+    return matched_ids if matched_ids else None
+
+
+def _extract_query_terms(query: str) -> List[str]:
+    """Extract meaningful terms from a query for filename post-filtering."""
+    stop_words = {
+        "the", "and", "for", "are", "but", "not", "you", "all", "can",
+        "had", "her", "was", "one", "our", "out", "has", "his", "how",
+        "its", "may", "new", "now", "old", "see", "way", "who", "did",
+        "get", "let", "say", "she", "too", "use", "what", "when", "where",
+        "which", "while", "with", "this", "that", "from", "about", "some",
+        "them", "then", "than", "into", "over", "such", "list", "give",
+        "tell", "show", "find", "readings", "documents", "document",
+        "syllabus", "syllabi", "course", "class", "does", "teach",
+    }
+    return [
+        w for w in re.findall(r'[a-z]+', query.lower())
+        if len(w) >= 3 and w not in stop_words
+    ]
+
+
+def _sanitize_history_messages(messages: List[Message]) -> List[Message]:
+    """Strip stale source facts from old assistant messages.
+
+    Each turn gets its own Pinecone results with fresh citation numbers.
+    If we send full old assistant responses into the context window, the AI
+    conflates facts from previous sources with the current ones — causing
+    hallucinations (e.g. wrong affiliations, misattributed claims).
+
+    This function truncates assistant messages so the AI sees enough for
+    conversational continuity but not enough to carry stale facts forward.
+    User messages are kept intact.
+    """
+    MAX_CHARS = 300
+    sanitized = []
+    for msg in messages:
+        if msg.role == MessageRole.ASSISTANT:
+            # Strip old citation markers — they reference different sources
+            content = _CITATION_RE.sub('', msg.content).strip()
+            # Collapse runs of whitespace left by stripped citations
+            content = re.sub(r'  +', ' ', content)
+            if len(content) > MAX_CHARS:
+                content = content[:MAX_CHARS].rsplit(' ', 1)[0] + " [earlier response truncated]"
+            sanitized.append(Message(
+                id=msg.id,
+                content=content,
+                role=msg.role,
+                timestamp=msg.timestamp,
+            ))
+        else:
+            sanitized.append(msg)
+    return sanitized
 
 
 class ChatRequest(BaseModel):
@@ -48,17 +155,20 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/stream")
-async def stream_chat(request: ChatRequest):
+async def stream_chat(
+    request: ChatRequest,
+    user_id: str = Depends(get_current_user_id),
+):
     """
     Stream a chat response using SSE.
 
     This endpoint streams the AI response in chunks, formatted as SSE events.
     """
     settings = get_settings()
-    discussions = get_discussions_storage()
+    disc_service = get_discussion_service()
 
-    # Validate discussion exists
-    discussion = discussions.get(request.discussion_id)
+    # Validate discussion exists and belongs to user
+    discussion = disc_service.get_discussion(request.discussion_id, user_id)
     if not discussion:
         raise HTTPException(status_code=404, detail="Discussion not found")
 
@@ -90,12 +200,14 @@ async def stream_chat(request: ChatRequest):
         role=MessageRole.USER,
         timestamp=datetime.utcnow()
     )
-    discussion.add_message(user_message)
+    disc_service.add_message(request.discussion_id, user_message)
 
     # Auto-generate title from first user message if still default
     title_updated = False
     if discussion.title == "New Chat":
-        discussion.title = request.message[:50] + ("..." if len(request.message) > 50 else "")
+        new_title = request.message[:50] + ("..." if len(request.message) > 50 else "")
+        disc_service.update_discussion(request.discussion_id, user_id, title=new_title)
+        discussion.title = new_title
         title_updated = True
 
     # Check if the discussion has attachments (needed for intent routing)
@@ -113,12 +225,28 @@ async def stream_chat(request: ChatRequest):
     # intent classifier says the knowledge base is needed.
     doc_service = get_document_service()
     rag_task = None
+    search_doc_ids = None
     if intent_result.use_knowledge_base:
+        # Determine which documents to search.
+        # If the caller passed explicit document_ids, use those.
+        # Otherwise, try to narrow by matching query terms against filenames.
+        search_doc_ids = request.document_ids if request.document_ids else None
+        if not search_doc_ids:
+            all_docs = doc_service.list_documents()
+            search_doc_ids = _match_documents_by_filename(request.message, all_docs)
+
+        # Over-fetch from Pinecone so keyword post-filtering has enough
+        # candidates.  Entity-name queries ("gernot wagner") score low
+        # semantically; retrieving more chunks increases the chance the
+        # relevant ones appear at all.  The threshold logic below trims
+        # the set back down before building context.
+        pinecone_top_k = max(research_config.top_k * 3, 20)
+
         rag_task = asyncio.create_task(
             doc_service.pinecone.search_documents(
                 query=request.message,
-                top_k=research_config.top_k,
-                document_ids=request.document_ids if request.document_ids else None
+                top_k=pinecone_top_k,
+                document_ids=search_doc_ids,
             )
         )
 
@@ -134,15 +262,21 @@ async def stream_chat(request: ChatRequest):
             rag_task.cancel()  # Cancel pending RAG if provider fails
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Get conversation context (last N messages)
-    context_messages = discussion.get_context_messages(limit=20)
+    # Get conversation context (last N messages), sanitized to prevent
+    # stale source facts from bleeding into the current RAG turn.
+    raw_messages = disc_service.get_context_messages(request.discussion_id, limit=20)
+    context_messages = _sanitize_history_messages(raw_messages)
 
     # Now await the RAG results (if Pinecone was queried)
     context = None
     sources: List[DocumentSource] = []
+    pre_filtered = search_doc_ids is not None
     if rag_task is not None:
         try:
             search_results = await rag_task
+
+            # Build query terms for post-filter filename matching
+            query_terms = _extract_query_terms(request.message)
 
             # Deduplicate by document: group chunks, assign ONE citation per document.
             # All chunks still go into context (for AI thoroughness), but share a citation number.
@@ -153,7 +287,38 @@ async def stream_chat(request: ChatRequest):
                 metadata = result.get("metadata")
                 score = result.get("score", 0)
 
-                if metadata and score > 0.3:
+                if not metadata:
+                    continue
+
+                # Tiered threshold — decides whether to include this chunk:
+                # 1. Pre-filtered (filename already matched): accept all
+                # 2. ALL query terms found in chunk content: accept (strong
+                #    keyword hit — works for entity names like "gernot wagner"
+                #    without being tripped by generic topic words like "climate")
+                # 3. Query terms found in FILENAME: low threshold (0.20)
+                # 4. No keyword hit: standard semantic threshold (0.45)
+                if pre_filtered:
+                    threshold = 0.0
+                else:
+                    content_lower = metadata.get("content", "").lower()
+                    fname_lower = metadata.get("filename", "").lower()
+                    # Require ALL query terms in content for a strong match.
+                    # "gernot" + "wagner" both in text → strong signal.
+                    # "climate" alone in text → too generic to bypass threshold.
+                    content_hit = (
+                        len(query_terms) >= 2
+                        and all(t in content_lower for t in query_terms)
+                    )
+                    fname_hit = any(t in fname_lower for t in query_terms)
+
+                    if content_hit:
+                        threshold = 0.0   # all keywords in text → accept
+                    elif fname_hit:
+                        threshold = 0.20  # keyword in filename → lenient
+                    else:
+                        threshold = _MIN_SCORE  # pure semantic match
+
+                if score > threshold:
                     doc_id = metadata.get("document_id", result["id"])
                     chunk_id = result.get("id")
                     filename = metadata.get("filename", "Unknown")
@@ -175,12 +340,24 @@ async def stream_chat(request: ChatRequest):
                         group["best_chunk_id"] = chunk_id
                         group["best_preview"] = content[:150] + "..." if len(content) > 150 else content
 
+            # Cap to research_config.top_k documents (over-fetch was for
+            # casting a wider net; now trim back to the requested depth).
+            sorted_groups = sorted(
+                doc_groups.items(),
+                key=lambda item: item[1]["best_score"],
+                reverse=True,
+            )[:research_config.top_k]
+
             # Build context and sources from deduplicated groups
             context_parts = []
             citation_number = 1
 
-            for doc_id, group in doc_groups.items():
+            for doc_id, group in sorted_groups:
                 combined_content = "\n\n".join(group["chunks"])
+                # Strip bracketed reference numbers from source text (e.g. [48], [52])
+                # so the AI doesn't confuse them with our [Source N] citation numbers
+                combined_content = _CITATION_RE.sub('', combined_content)
+                combined_content = re.sub(r'  +', ' ', combined_content).strip()
                 context_parts.append(f"[Source {citation_number} - {group['filename']}]:\n{combined_content}")
 
                 sources.append(DocumentSource(
@@ -195,6 +372,17 @@ async def stream_chat(request: ChatRequest):
 
             if context_parts:
                 context = "\n\n---\n\n".join(context_parts)
+            else:
+                # Knowledge base was queried but nothing scored high enough.
+                # Tell the AI explicitly so it doesn't fabricate from thin air.
+                context = (
+                    "[No relevant sources found in the knowledge base for this query.]\n\n"
+                    "Guidelines:\n"
+                    "- Do NOT fabricate or guess content that might be in the documents\n"
+                    "- Let the user know that no matching documents were found\n"
+                    "- Suggest they rephrase their question or check which documents are uploaded\n"
+                    "- You may still answer from general knowledge, but clearly state you are doing so"
+                )
         except asyncio.CancelledError:
             pass  # RAG was cancelled
         except Exception as e:
@@ -315,7 +503,7 @@ async def stream_chat(request: ChatRequest):
         # Send done event after suggested questions
         yield format_sse_event("done", {"provider": request.provider})
 
-        discussion.add_message(assistant_message)
+        disc_service.add_message(request.discussion_id, assistant_message)
 
     return StreamingResponse(
         generate(),

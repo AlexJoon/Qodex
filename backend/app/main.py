@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from app.core.config import get_settings
 from app.api.routes import chat_router, discussions_router, documents_router, attachments_router
+from app.services.document_service import get_document_service
 
 # Import providers to register them
 from app.providers import (
@@ -31,6 +32,18 @@ async def lifespan(app: FastAPI):
         "Cohere": bool(settings.cohere_api_key),
     }
     print(f"Configured providers: {providers_status}")
+
+    # Bootstrap document registry from Pinecone if the local cache is empty.
+    # This ensures list_documents() and filename pre-filtering work after
+    # restarts, even for documents uploaded before persistence was added.
+    doc_service = get_document_service()
+    if not doc_service.list_documents():
+        try:
+            count = await doc_service.bootstrap_registry()
+            if count:
+                print(f"Bootstrapped {count} documents from Pinecone")
+        except Exception as e:
+            print(f"Warning: document registry bootstrap failed: {e}")
 
     yield
 

@@ -1,118 +1,121 @@
-from fastapi import APIRouter, HTTPException
-from typing import List, Dict, Optional
+from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Optional
 from datetime import datetime
 import uuid
 
 from app.models import Discussion, DiscussionCreate, DiscussionUpdate, Message, MessageCreate
+from app.auth import get_current_user_id
+from app.services.discussion_service import get_discussion_service
 
 router = APIRouter(prefix="/api/discussions", tags=["discussions"])
 
-# In-memory storage (replace with database in production)
-_discussions: Dict[str, Discussion] = {}
+
+@router.get("", response_model=List[Discussion])
+async def list_discussions(user_id: str = Depends(get_current_user_id)):
+    """List all discussions for the authenticated user."""
+    service = get_discussion_service()
+    return service.list_discussions(user_id)
 
 
-def _get_discussion(discussion_id: str) -> Discussion:
-    """Get discussion or raise 404."""
-    discussion = _discussions.get(discussion_id)
+@router.post("", response_model=Discussion)
+async def create_discussion(
+    data: Optional[DiscussionCreate] = None,
+    user_id: str = Depends(get_current_user_id),
+):
+    """Create a new discussion."""
+    service = get_discussion_service()
+    title = data.title if data else "New Chat"
+    return service.create_discussion(user_id, title)
+
+
+@router.get("/{discussion_id}", response_model=Discussion)
+async def get_discussion(
+    discussion_id: str,
+    user_id: str = Depends(get_current_user_id),
+):
+    """Get a discussion by ID."""
+    service = get_discussion_service()
+    discussion = service.get_discussion(discussion_id, user_id)
     if not discussion:
         raise HTTPException(status_code=404, detail="Discussion not found")
     return discussion
 
 
-@router.get("", response_model=List[Discussion])
-async def list_discussions():
-    """List all discussions, sorted by updated_at descending."""
-    discussions = list(_discussions.values())
-    discussions.sort(key=lambda d: d.updated_at, reverse=True)
-    return discussions
-
-
-@router.post("", response_model=Discussion)
-async def create_discussion(data: Optional[DiscussionCreate] = None):
-    """Create a new discussion."""
-    discussion = Discussion(
-        id=str(uuid.uuid4()),
-        title=data.title if data else "New Chat",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
-    _discussions[discussion.id] = discussion
-    return discussion
-
-
-@router.get("/{discussion_id}", response_model=Discussion)
-async def get_discussion(discussion_id: str):
-    """Get a discussion by ID."""
-    return _get_discussion(discussion_id)
-
-
 @router.put("/{discussion_id}", response_model=Discussion)
-async def update_discussion(discussion_id: str, data: DiscussionUpdate):
+async def update_discussion(
+    discussion_id: str,
+    data: DiscussionUpdate,
+    user_id: str = Depends(get_current_user_id),
+):
     """Update a discussion."""
-    discussion = _get_discussion(discussion_id)
-
+    service = get_discussion_service()
+    updates = {}
     if data.title is not None:
-        discussion.title = data.title
+        updates["title"] = data.title
     if data.is_active is not None:
-        # Deactivate all other discussions if setting this one active
         if data.is_active:
-            for d in _discussions.values():
-                d.is_active = False
-        discussion.is_active = data.is_active
+            service.deactivate_all(user_id)
+        updates["is_active"] = data.is_active
 
-    discussion.updated_at = datetime.utcnow()
+    discussion = service.update_discussion(discussion_id, user_id, **updates)
+    if not discussion:
+        raise HTTPException(status_code=404, detail="Discussion not found")
     return discussion
 
 
 @router.delete("/{discussion_id}")
-async def delete_discussion(discussion_id: str):
+async def delete_discussion(
+    discussion_id: str,
+    user_id: str = Depends(get_current_user_id),
+):
     """Delete a discussion."""
-    if discussion_id not in _discussions:
+    service = get_discussion_service()
+    deleted = service.delete_discussion(discussion_id, user_id)
+    if not deleted:
         raise HTTPException(status_code=404, detail="Discussion not found")
-    del _discussions[discussion_id]
     return {"status": "deleted", "id": discussion_id}
 
 
 @router.post("/{discussion_id}/messages", response_model=Message)
-async def add_message(discussion_id: str, data: MessageCreate):
+async def add_message(
+    discussion_id: str,
+    data: MessageCreate,
+    user_id: str = Depends(get_current_user_id),
+):
     """Add a message to a discussion."""
-    discussion = _get_discussion(discussion_id)
+    service = get_discussion_service()
+
+    # Verify discussion belongs to user
+    discussion = service.get_discussion(discussion_id, user_id)
+    if not discussion:
+        raise HTTPException(status_code=404, detail="Discussion not found")
 
     message = Message(
         id=str(uuid.uuid4()),
         content=data.content,
         role=data.role,
         provider=data.provider,
-        timestamp=datetime.utcnow()
+        timestamp=datetime.utcnow(),
     )
-
-    discussion.add_message(message)
+    service.add_message(discussion_id, message)
 
     # Auto-generate title from first user message if still default
     if discussion.title == "New Chat" and data.role.value == "user":
-        # Use first 50 chars of message as title
-        discussion.title = data.content[:50] + ("..." if len(data.content) > 50 else "")
+        new_title = data.content[:50] + ("..." if len(data.content) > 50 else "")
+        service.update_discussion(discussion_id, user_id, title=new_title)
 
     return message
 
 
 @router.post("/{discussion_id}/activate", response_model=Discussion)
-async def activate_discussion(discussion_id: str):
+async def activate_discussion(
+    discussion_id: str,
+    user_id: str = Depends(get_current_user_id),
+):
     """Set a discussion as active."""
-    discussion = _get_discussion(discussion_id)
-
-    # Deactivate all discussions
-    for d in _discussions.values():
-        d.is_active = False
-
-    # Activate this one
-    discussion.is_active = True
-    discussion.updated_at = datetime.utcnow()
-
+    service = get_discussion_service()
+    service.deactivate_all(user_id)
+    discussion = service.update_discussion(discussion_id, user_id, is_active=True)
+    if not discussion:
+        raise HTTPException(status_code=404, detail="Discussion not found")
     return discussion
-
-
-# Export storage for use in other routers
-def get_discussions_storage() -> Dict[str, Discussion]:
-    """Get the discussions storage."""
-    return _discussions

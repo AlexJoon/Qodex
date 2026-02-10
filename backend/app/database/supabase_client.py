@@ -1,10 +1,11 @@
 """
 Supabase client singleton for database operations.
-Initializes connection using environment variables.
+Initializes connection using application settings.
 """
 from supabase import create_client, Client
-import os
 from typing import Optional
+
+from app.core.config import get_settings
 
 # Global client instance
 _supabase_client: Optional[Client] = None
@@ -22,12 +23,15 @@ def get_supabase_client() -> Client:
     global _supabase_client
 
     if _supabase_client is None:
-        supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_KEY")
+        settings = get_settings()
+        supabase_url = settings.supabase_url
+        # Prefer service role key (bypasses RLS) for backend operations;
+        # fall back to anon key for backwards compatibility.
+        supabase_key = settings.supabase_service_role_key or settings.supabase_key
 
         if not supabase_url or not supabase_key:
             raise ValueError(
-                "SUPABASE_URL and SUPABASE_KEY must be set in environment variables"
+                "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY) must be set"
             )
 
         _supabase_client = create_client(supabase_url, supabase_key)

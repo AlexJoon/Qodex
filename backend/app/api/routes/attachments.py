@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from typing import List
 
 from app.models.attachment import Attachment, AttachmentSummary
 from app.services.attachment_service import get_attachment_service
+from app.auth import get_current_user_id
 
 router = APIRouter(
     prefix="/api/discussions/{discussion_id}/attachments",
@@ -22,7 +23,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 @router.post("", response_model=AttachmentSummary)
-async def upload_attachment(discussion_id: str, file: UploadFile = File(...)):
+async def upload_attachment(discussion_id: str, file: UploadFile = File(...), _user_id: str = Depends(get_current_user_id)):
     """Upload a file as a conversation attachment (not indexed into Pinecone)."""
     filename = file.filename or "unknown"
     extension = "." + filename.split(".")[-1].lower() if "." in filename else ""
@@ -59,14 +60,14 @@ async def upload_attachment(discussion_id: str, file: UploadFile = File(...)):
 
 
 @router.get("", response_model=List[AttachmentSummary])
-async def list_attachments(discussion_id: str):
+async def list_attachments(discussion_id: str, _user_id: str = Depends(get_current_user_id)):
     """List all attachments for a discussion."""
     svc = get_attachment_service()
     return svc.list_attachments(discussion_id)
 
 
 @router.get("/{attachment_id}")
-async def get_attachment(discussion_id: str, attachment_id: str):
+async def get_attachment(discussion_id: str, attachment_id: str, _user_id: str = Depends(get_current_user_id)):
     """Get attachment metadata and full text content for preview."""
     svc = get_attachment_service()
     attachment = svc.get_attachment(discussion_id, attachment_id)
@@ -95,7 +96,7 @@ async def get_attachment(discussion_id: str, attachment_id: str):
 
 
 @router.delete("/{attachment_id}")
-async def delete_attachment(discussion_id: str, attachment_id: str):
+async def delete_attachment(discussion_id: str, attachment_id: str, _user_id: str = Depends(get_current_user_id)):
     """Remove an attachment from a discussion."""
     svc = get_attachment_service()
     deleted = svc.delete_attachment(discussion_id, attachment_id)

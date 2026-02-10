@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     # Supabase Database Configuration
     supabase_url: str = ""
     supabase_key: str = ""
+    supabase_service_role_key: str = ""
+    supabase_jwt_secret: str = ""
 
     # AI Provider API Keys
     openai_api_key: str = ""

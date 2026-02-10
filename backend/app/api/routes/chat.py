@@ -19,6 +19,7 @@ from app.core.research_modes import (
 from app.models import Message, MessageRole, DocumentSource
 from app.providers import ProviderRegistry
 from app.services.document_service import get_document_service
+from app.services.attachment_service import get_attachment_service
 from app.utils.streaming import create_sse_response, format_sse_event
 from app.services.intent_classifier import classify_intent
 from app.api.routes.discussions import get_discussions_storage
@@ -33,6 +34,7 @@ class ChatRequest(BaseModel):
     message: str
     provider: str  # openai, mistral, claude, cohere
     document_ids: Optional[List[str]] = None
+    attachment_ids: Optional[List[str]] = None  # conversation-scoped attachments
     temperature: float = 0.7
     max_tokens: int = 4096
     research_mode: ResearchMode = DEFAULT_RESEARCH_MODE
@@ -96,21 +98,29 @@ async def stream_chat(request: ChatRequest):
         discussion.title = request.message[:50] + ("..." if len(request.message) > 50 else "")
         title_updated = True
 
+    # Check if the discussion has attachments (needed for intent routing)
+    attachment_service = get_attachment_service()
+    has_attachments = len(attachment_service.list_attachments(request.discussion_id)) > 0
+
     # Classify user intent for structured output (zero-latency regex matching)
-    intent_result = classify_intent(request.message)
+    # When attachments exist, also determines if Pinecone should be queried
+    intent_result = classify_intent(request.message, has_attachments=has_attachments)
 
     # Get research mode configuration
     research_config = get_research_mode_config(request.research_mode)
 
-    # Start RAG search in parallel with provider setup (non-blocking)
+    # Start RAG search in parallel with provider setup — but only when the
+    # intent classifier says the knowledge base is needed.
     doc_service = get_document_service()
-    rag_task = asyncio.create_task(
-        doc_service.pinecone.search_documents(
-            query=request.message,
-            top_k=research_config.top_k,
-            document_ids=request.document_ids if request.document_ids else None
+    rag_task = None
+    if intent_result.use_knowledge_base:
+        rag_task = asyncio.create_task(
+            doc_service.pinecone.search_documents(
+                query=request.message,
+                top_k=research_config.top_k,
+                document_ids=request.document_ids if request.document_ids else None
+            )
         )
-    )
 
     # Get the provider (runs in parallel with RAG search)
     try:
@@ -120,53 +130,90 @@ async def stream_chat(request: ChatRequest):
             model=model
         )
     except ValueError as e:
-        rag_task.cancel()  # Cancel pending RAG if provider fails
+        if rag_task is not None:
+            rag_task.cancel()  # Cancel pending RAG if provider fails
         raise HTTPException(status_code=400, detail=str(e))
 
     # Get conversation context (last N messages)
     context_messages = discussion.get_context_messages(limit=20)
 
-    # Now await the RAG results (should be mostly complete by now)
+    # Now await the RAG results (if Pinecone was queried)
     context = None
     sources: List[DocumentSource] = []
-    try:
-        search_results = await rag_task
+    if rag_task is not None:
+        try:
+            search_results = await rag_task
 
-        # Single-pass processing: build sources and context together with citation numbers
-        # Each chunk gets its own citation so users can highlight the exact chunk in preview
-        context_parts = []
-        citation_number = 1
+            # Deduplicate by document: group chunks, assign ONE citation per document.
+            # All chunks still go into context (for AI thoroughness), but share a citation number.
+            # The source entry uses the highest score and best chunk from each document.
+            doc_groups: dict = {}  # doc_id -> { chunks: [...], best_score, best_chunk_id, best_preview, filename }
 
-        for result in search_results:
-            metadata = result.get("metadata")
-            score = result.get("score", 0)
+            for result in search_results:
+                metadata = result.get("metadata")
+                score = result.get("score", 0)
 
-            if metadata and score > 0.3:
-                doc_id = metadata.get("document_id", result["id"])
-                chunk_id = result.get("id")  # Pinecone chunk ID (e.g. "uuid_5")
-                filename = metadata.get("filename", "Unknown")
-                content = metadata.get("content", "")
+                if metadata and score > 0.3:
+                    doc_id = metadata.get("document_id", result["id"])
+                    chunk_id = result.get("id")
+                    filename = metadata.get("filename", "Unknown")
+                    content = metadata.get("content", "")
 
-                # Add to context with citation number
-                context_parts.append(f"[Source {citation_number} - {filename}]:\n{content}")
+                    if doc_id not in doc_groups:
+                        doc_groups[doc_id] = {
+                            "filename": filename,
+                            "chunks": [],
+                            "best_score": score,
+                            "best_chunk_id": chunk_id,
+                            "best_preview": content[:150] + "..." if len(content) > 150 else content,
+                        }
 
-                # Each chunk is a separate source with its own citation number
+                    group = doc_groups[doc_id]
+                    group["chunks"].append(content)
+                    if score > group["best_score"]:
+                        group["best_score"] = score
+                        group["best_chunk_id"] = chunk_id
+                        group["best_preview"] = content[:150] + "..." if len(content) > 150 else content
+
+            # Build context and sources from deduplicated groups
+            context_parts = []
+            citation_number = 1
+
+            for doc_id, group in doc_groups.items():
+                combined_content = "\n\n".join(group["chunks"])
+                context_parts.append(f"[Source {citation_number} - {group['filename']}]:\n{combined_content}")
+
                 sources.append(DocumentSource(
                     id=doc_id,
-                    filename=filename,
-                    score=round(score, 3),
-                    chunk_preview=content[:150] + "..." if len(content) > 150 else content,
+                    filename=group["filename"],
+                    score=round(group["best_score"], 3),
+                    chunk_preview=group["best_preview"],
                     citation_number=citation_number,
-                    chunk_id=chunk_id
+                    chunk_id=group["best_chunk_id"],
                 ))
                 citation_number += 1
 
-        if context_parts:
-            context = "\n\n---\n\n".join(context_parts)
-    except asyncio.CancelledError:
-        pass  # RAG was cancelled
-    except Exception as e:
-        logger.warning(f"Pinecone search failed: {e}")
+            if context_parts:
+                context = "\n\n---\n\n".join(context_parts)
+        except asyncio.CancelledError:
+            pass  # RAG was cancelled
+        except Exception as e:
+            logger.warning(f"Pinecone search failed: {e}")
+
+    # Inject conversation-scoped attachment context (never touches Pinecone)
+    attachment_context = attachment_service.get_context_for_chat(
+        discussion_id=request.discussion_id,
+        attachment_ids=request.attachment_ids,
+    )
+    if attachment_context:
+        if context:
+            context = (
+                attachment_context
+                + "\n\n===\n\n"
+                + context
+            )
+        else:
+            context = attachment_context
 
     # Create streaming response
     async def generate():

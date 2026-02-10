@@ -13,6 +13,7 @@ class IntentResult:
     intent: str          # Machine key: "summarize", "case_study", etc.
     label: str           # Display label: "Summary", "Case Study", etc.
     prompt_suffix: str   # Appended to system prompt
+    use_knowledge_base: bool = True  # Whether to query Pinecone
 
 
 # Intent definitions: (intent_key, display_label, patterns, prompt_suffix)
@@ -245,14 +246,75 @@ INTENT_DEFINITIONS = [
 ]
 
 
-def classify_intent(message: str) -> IntentResult:
+# ---------------------------------------------------------------------------
+# Knowledge-base routing: when the user has attachments, decide whether to
+# also query Pinecone or rely solely on the attached files.
+# ---------------------------------------------------------------------------
+
+# Patterns that signal the user is asking about their OWN attached documents.
+_ATTACHMENT_ONLY_PATTERNS = [
+    r"\b(this|these|the|my) \d* *(document|file|attachment|upload|paper|syllab|pdf)",
+    r"\bwhat (is|are) (this|these|it|they) about\b",
+    r"\b(tell me|what) about (this|these|the) (document|file|paper|syllab)",
+    r"\buploaded (document|file|paper|syllab)",
+    r"\b(read|analyze|review|parse|look at) (this|these|the|my) (document|file|paper|attachment|syllab)",
+    r"\b(what does|what do) (this|these|the|my) (document|file|paper|syllab)",
+    r"\b(this|these) \d+ (document|file|paper|syllab)",
+    r"\bin (this|these|the|my) (document|file|paper|attachment|syllab)",
+]
+
+# Patterns that signal the user wants cross-referencing against the knowledge base.
+_KNOWLEDGE_BASE_PATTERNS = [
+    r"\bwho else\b",
+    r"\bwhat (other|else)\b",
+    r"\bother (course|professor|instructor|syllab|document|paper|reading)",
+    r"\bsimilar (to|course|topic|reading|content)",
+    r"\bfind (similar|related|others|matching)",
+    r"\bacross (the|all|our)\b",
+    r"\bin (the|our) (database|knowledge|collection|corpus|system)",
+    r"\bcompare (with|to|against) (other|the|existing)",
+    r"\bwho (teaches|covers|has|offers)\b",
+    r"\bknowledge base\b",
+]
+
+
+def _should_use_knowledge_base(message: str) -> bool:
+    """Decide whether to query Pinecone when attachments are present.
+
+    Priority:
+    1. Explicit knowledge-base patterns → True  (search Pinecone)
+    2. Attachment-only patterns → False           (skip Pinecone)
+    3. No match → True                            (safe default)
+    """
+    lower = message.lower().strip()
+
+    for pattern in _KNOWLEDGE_BASE_PATTERNS:
+        if re.search(pattern, lower):
+            return True
+
+    for pattern in _ATTACHMENT_ONLY_PATTERNS:
+        if re.search(pattern, lower):
+            return False
+
+    return True  # safe default — still search
+
+
+def classify_intent(message: str, has_attachments: bool = False) -> IntentResult:
     """
     Classify the user's message into an intent category.
     Returns the first matching intent, or a general fallback.
 
     Uses case-insensitive regex matching — zero latency.
+
+    When *has_attachments* is True, also determines whether the question
+    targets the user's own files (skip Pinecone) or needs the broader
+    knowledge base (query Pinecone).
     """
     message_lower = message.lower().strip()
+
+    use_kb = True
+    if has_attachments:
+        use_kb = _should_use_knowledge_base(message)
 
     for definition in INTENT_DEFINITIONS:
         for pattern in definition["patterns"]:
@@ -261,18 +323,27 @@ def classify_intent(message: str) -> IntentResult:
                     intent=definition["intent"],
                     label=definition["label"],
                     prompt_suffix=definition["prompt_suffix"],
+                    use_knowledge_base=use_kb,
                 )
 
-    # Fallback: general intent — enhanced base prompt for climate/education domain
+    # Fallback: generalist agent — comprehensive, well-structured responses
     return IntentResult(
-        intent="general",
-        label="General",
+        intent="generalist",
+        label="Generalist",
         prompt_suffix=(
-            "\n\n## Response Guidelines\n"
-            "- Use clear markdown formatting with headings and bullet points where appropriate\n"
-            "- Ground all claims in the source material with inline citations [N]\n"
-            "- When relevant, note implications for climate policy, education, or practice\n"
-            "- Distinguish between what sources state directly and your interpretive synthesis\n"
-            "- If the sources don't cover the question adequately, say so explicitly"
+            "\n\n## Output Structure — Generalist\n"
+            "Provide a comprehensive, well-structured response:\n"
+            "### Direct Answer\n"
+            "- Lead with a clear, concise answer to the user's question\n"
+            "### Supporting Detail\n"
+            "- Expand with relevant evidence, context, or reasoning from the sources\n"
+            "- Use bullet points for multiple supporting points\n"
+            "### Broader Context\n"
+            "- Connect the answer to wider themes, implications, or related concepts where appropriate\n"
+            "### Key Takeaway\n"
+            "- End with a brief synthesis or actionable insight\n\n"
+            "Adapt depth to the complexity of the question. Simple questions deserve concise answers; "
+            "complex questions warrant thorough exploration. Always ground claims in source material."
         ),
+        use_knowledge_base=use_kb,
     )

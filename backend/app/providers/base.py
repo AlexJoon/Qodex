@@ -74,19 +74,39 @@ class BaseProvider(ABC):
 
         # Add system message with context if provided
         if context:
-            system_content = (
-                "Use the following context to help answer the user's question. "
-                "Each source is numbered. When you reference information from a specific source, "
-                "add a citation marker [N] immediately after the relevant statement, where N is the source number.\n\n"
-                "[Sources for reference]\n"
-                f"{context}\n\n"
-                "Guidelines:\n"
-                "- Add [N] citations inline where information comes from source N\n"
-                "- Multiple sources can be cited together like [1][2]\n"
-                "- Be precise - cite at the claim level, not just at the end of paragraphs\n"
-                "- Natural placement - citations should feel unobtrusive\n\n"
-                "Now provide an accurate and helpful response with inline citations."
-            )
+            # Detect whether context includes Pinecone sources or only user attachments.
+            # Attachment-only context uses [Attached File: ...] labels;
+            # Pinecone sources use [Source N - ...] labels.
+            has_pinecone_sources = "[Source " in context
+
+            if has_pinecone_sources:
+                system_content = (
+                    "Use the following context to help answer the user's question. "
+                    "Each source is numbered. When you reference information from a specific source, "
+                    "add a citation marker [N] immediately after the relevant statement, where N is the source number.\n\n"
+                    "[Sources for reference]\n"
+                    f"{context}\n\n"
+                    "Guidelines:\n"
+                    "- Add [N] citations inline where information comes from source N\n"
+                    "- Multiple sources can be cited together like [1][2]\n"
+                    "- Be precise - cite at the claim level, not just at the end of paragraphs\n"
+                    "- Natural placement - citations should feel unobtrusive\n\n"
+                    "Now provide an accurate and helpful response with inline citations."
+                )
+            else:
+                # Attachment-only mode: no numbered citations, reference files by name
+                system_content = (
+                    "The user has attached documents to this conversation for you to analyze. "
+                    "Use the content below to answer their question.\n\n"
+                    "[Attached Documents]\n"
+                    f"{context}\n\n"
+                    "Guidelines:\n"
+                    "- Reference documents by their filename when discussing specific content\n"
+                    "- Provide thorough, accurate analysis grounded in the attached content\n"
+                    "- Do NOT use numbered citation markers like [1] or [2]\n"
+                    "- If the documents don't contain enough information to answer, say so explicitly\n\n"
+                    "Now provide a helpful response based on the attached documents."
+                )
 
             # Append research depth instructions (controls thoroughness)
             if research_prompt:

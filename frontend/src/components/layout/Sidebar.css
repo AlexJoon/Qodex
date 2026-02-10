@@ -493,3 +493,64 @@
 .sidebar-settings-menu-item.delete:hover {
   background-color: var(--red-50);
 }
+
+/* Language menu item wrapper */
+.sidebar-settings-menu-item-wrapper {
+  position: relative;
+}
+
+.sidebar-settings-menu-item .language-chevron {
+  margin-left: auto;
+  transition: transform 0.15s ease;
+}
+
+.sidebar-settings-menu-item .language-chevron.open {
+  transform: rotate(90deg);
+}
+
+/* Language sub-menu */
+.language-submenu {
+  position: absolute;
+  left: calc(100% + 4px);
+  bottom: 0;
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+  min-width: 140px;
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 1001;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.language-submenu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--gray-700);
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.language-submenu-item:hover {
+  background-color: var(--gray-100);
+}
+
+.language-submenu-item.active {
+  color: var(--brand-600);
+  font-weight: 500;
+}
+
+.language-check {
+  color: var(--brand-600);
+  flex-shrink: 0;
+}

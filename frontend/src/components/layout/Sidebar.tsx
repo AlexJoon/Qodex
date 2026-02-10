@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SquarePen, MessageSquare, Settings, User, Trash2, PanelLeftClose, PanelLeft, MoreVertical, Check, Copy, Home, LogOut, Sparkles, Compass, GraduationCap, Mail } from 'lucide-react';
+import { SquarePen, MessageSquare, Settings, User, Trash2, PanelLeftClose, PanelLeft, MoreVertical, Check, Copy, LogOut, Sparkles, Compass, GraduationCap, Mail, Globe, ChevronRight } from 'lucide-react';
+import { getAvatarIcon } from '@/shared/constants/avatarIcons';
 import { useDiscussionStore } from '@/features/discussions';
 import { useChatStore } from '@/features/chat';
 import { useAuthStore } from '@/features/auth';
@@ -8,6 +9,7 @@ import { Discussion } from '@/shared/types';
 import logo from '../../assets/qodex-logo.png';
 import { SampleQuestionsDropdown } from './SampleQuestionsDropdown';
 import { ContactModal } from './ContactModal';
+import { AccountSettingsModal } from './AccountSettingsModal';
 import { SAMPLE_QUESTIONS } from '@/shared/constants/sampleQuestions';
 import './Sidebar.css';
 
@@ -17,6 +19,8 @@ export function Sidebar() {
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showSampleQuestions, setShowSampleQuestions] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
   const sampleQuestionsRef = useRef<HTMLDivElement>(null);
@@ -42,6 +46,7 @@ export function Sidebar() {
     const handleClickOutside = (event: MouseEvent) => {
       if (settingsMenuRef.current && !settingsMenuRef.current.contains(event.target as Node)) {
         setShowSettingsMenu(false);
+        setShowLanguageMenu(false);
       }
     };
 
@@ -240,7 +245,7 @@ export function Sidebar() {
       <div className="sidebar-footer">
         <div className="sidebar-user">
           <div className="sidebar-user-avatar">
-            <User size={16} />
+            {(() => { const AvatarIcon = getAvatarIcon(user?.user_metadata?.avatar_icon); return <AvatarIcon size={16} />; })()}
           </div>
           {!isCollapsed && (
             <div className="sidebar-user-info">
@@ -261,14 +266,23 @@ export function Sidebar() {
               </button>
               {showSettingsMenu && (
                 <div className="sidebar-settings-menu">
-                  <a href="https://openclimatecurriculum.org/" target="_blank" rel="noopener noreferrer" className="sidebar-settings-menu-item" onClick={() => setShowSettingsMenu(false)}>
-                    <Home size={14} />
-                    <span>Home</span>
-                  </a>
-                  <a href="https://openclimatecurriculum.org/user" target="_blank" rel="noopener noreferrer" className="sidebar-settings-menu-item" onClick={() => setShowSettingsMenu(false)}>
+                  <button className="sidebar-settings-menu-item" onClick={() => { setShowSettingsMenu(false); setShowLanguageMenu(false); setShowAccountSettings(true); }}>
                     <User size={14} />
                     <span>Profile</span>
-                  </a>
+                  </button>
+                  <div className="sidebar-settings-menu-item-wrapper">
+                    <button
+                      className="sidebar-settings-menu-item"
+                      onClick={(e) => { e.stopPropagation(); setShowLanguageMenu(!showLanguageMenu); }}
+                    >
+                      <Globe size={14} />
+                      <span>Language</span>
+                      <ChevronRight size={12} className={`language-chevron ${showLanguageMenu ? 'open' : ''}`} />
+                    </button>
+                    {showLanguageMenu && (
+                      <LanguageSubMenu onSelect={() => { setShowLanguageMenu(false); setShowSettingsMenu(false); }} />
+                    )}
+                  </div>
                   <button className="sidebar-settings-menu-item delete" onClick={handleLogout}>
                     <LogOut size={14} />
                     <span>Logout</span>
@@ -285,7 +299,62 @@ export function Sidebar() {
         isOpen={showContactModal}
         onClose={() => setShowContactModal(false)}
       />
+
+      {/* Account Settings Modal */}
+      <AccountSettingsModal
+        isOpen={showAccountSettings}
+        onClose={() => setShowAccountSettings(false)}
+      />
     </aside>
+  );
+}
+
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'es', label: 'Espa\u00f1ol' },
+  { code: 'fr', label: 'Fran\u00e7ais' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'pt', label: 'Portugu\u00eas' },
+  { code: 'zh-CN', label: '\u4e2d\u6587' },
+  { code: 'ja', label: '\u65e5\u672c\u8a9e' },
+  { code: 'ko', label: '\ud55c\uad6d\uc5b4' },
+  { code: 'ar', label: '\u0627\u0644\u0639\u0631\u0628\u064a\u0629' },
+  { code: 'hi', label: '\u0939\u093f\u0928\u094d\u0926\u0940' },
+  { code: 'ru', label: '\u0420\u0443\u0441\u0441\u043a\u0438\u0439' },
+  { code: 'it', label: 'Italiano' },
+  { code: 'tr', label: 'T\u00fcrk\u00e7e' },
+  { code: 'vi', label: 'Ti\u1ebfng Vi\u1ec7t' },
+  { code: 'th', label: '\u0e44\u0e17\u0e22' },
+];
+
+function getActiveLanguage(): string {
+  const match = document.cookie.match(/googtrans=\/en\/([^;]+)/);
+  return match ? match[1] : 'en';
+}
+
+function LanguageSubMenu({ onSelect }: { onSelect: () => void }) {
+  const activeLang = getActiveLanguage();
+
+  const handleLanguageClick = (langCode: string) => {
+    document.cookie = `googtrans=/en/${langCode};path=/;`;
+    document.cookie = `googtrans=/en/${langCode};path=/;domain=${window.location.hostname}`;
+    onSelect();
+    window.location.reload();
+  };
+
+  return (
+    <div className="language-submenu">
+      {LANGUAGES.map((lang) => (
+        <button
+          key={lang.code}
+          className={`language-submenu-item ${lang.code === activeLang ? 'active' : ''}`}
+          onClick={(e) => { e.stopPropagation(); handleLanguageClick(lang.code); }}
+        >
+          <span>{lang.label}</span>
+          {lang.code === activeLang && <Check size={14} className="language-check" />}
+        </button>
+      ))}
+    </div>
   );
 }
 

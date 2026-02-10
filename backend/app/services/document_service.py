@@ -1,8 +1,10 @@
 from typing import List, Optional, Dict, Any, Tuple
+from pathlib import Path
 import tiktoken
 import uuid
 import logging
 import re
+import json
 from pypdf import PdfReader
 from docx import Document as DocxDocument
 import io
@@ -11,6 +13,10 @@ from app.models.document import Document, DocumentChunk
 from app.services.pinecone_service import get_pinecone_service
 
 logger = logging.getLogger(__name__)
+
+# Persist document metadata so list_documents() survives server restarts
+_REGISTRY_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+_REGISTRY_PATH = _REGISTRY_DIR / "document_registry.json"
 
 
 class DocumentService:
@@ -21,8 +27,109 @@ class DocumentService:
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
         self.max_chunk_tokens = 500
         self.chunk_overlap = 50
-        # In-memory cache for recently uploaded documents
+        # In-memory cache — hydrated from disk on startup
         self._documents: Dict[str, Document] = {}
+        self._load_registry()
+
+    # =========================================================================
+    # Document registry persistence
+    # =========================================================================
+
+    def _load_registry(self) -> None:
+        """Load document metadata from disk (survives server restarts)."""
+        if not _REGISTRY_PATH.exists():
+            return
+        try:
+            data = json.loads(_REGISTRY_PATH.read_text())
+            for entry in data:
+                doc = Document.model_validate(entry)
+                self._documents[doc.id] = doc
+            logger.info(f"Loaded {len(self._documents)} documents from registry")
+        except Exception as e:
+            logger.warning(f"Failed to load document registry: {e}")
+
+    def _save_registry(self) -> None:
+        """Persist document metadata to disk."""
+        try:
+            _REGISTRY_DIR.mkdir(parents=True, exist_ok=True)
+            data = [doc.model_dump(mode="json") for doc in self._documents.values()]
+            _REGISTRY_PATH.write_text(json.dumps(data, default=str))
+        except Exception as e:
+            logger.warning(f"Failed to save document registry: {e}")
+
+    async def bootstrap_registry(self) -> int:
+        """Discover all documents from Pinecone and populate the registry.
+
+        This is needed after a server restart when the registry JSON doesn't
+        exist yet (i.e. all documents were uploaded before persistence was added).
+
+        Returns the number of new documents discovered.
+        """
+        logger.info("Bootstrapping document registry from Pinecone...")
+
+        # Step 1: List all vector IDs
+        all_ids = await self.pinecone.list_all_vector_ids()
+        if not all_ids:
+            logger.info("No vectors found in Pinecone — nothing to bootstrap")
+            return 0
+
+        # Step 2: Group by document_id (vector ID format: {uuid}_{chunk_index})
+        doc_chunks: dict[str, list[str]] = {}
+        for vid in all_ids:
+            parts = vid.rsplit("_", 1)
+            if len(parts) == 2 and parts[1].isdigit():
+                doc_id = parts[0]
+            else:
+                doc_id = vid  # fallback: treat full ID as document
+            doc_chunks.setdefault(doc_id, []).append(vid)
+
+        # Step 3: Skip documents we already know about
+        new_doc_ids = [did for did in doc_chunks if did not in self._documents]
+        if not new_doc_ids:
+            logger.info("Registry already contains all Pinecone documents")
+            return 0
+
+        # Step 4: Fetch one representative vector per new document to get metadata
+        discovered = 0
+        # Batch fetch in groups of 100 (Pinecone limit)
+        representative_ids = [doc_chunks[did][0] for did in new_doc_ids]
+        for i in range(0, len(representative_ids), 100):
+            batch = representative_ids[i : i + 100]
+            try:
+                fetched = await self.pinecone.fetch_vectors(batch)
+            except Exception as e:
+                logger.warning(f"Failed to fetch vector batch: {e}")
+                continue
+
+            for vid, vec_data in fetched.items():
+                metadata = vec_data.get("metadata", {})
+                # Recover the document_id from the vector ID
+                parts = vid.rsplit("_", 1)
+                doc_id = parts[0] if (len(parts) == 2 and parts[1].isdigit()) else vid
+
+                if doc_id in self._documents:
+                    continue  # already known
+
+                chunk_ids = sorted(doc_chunks.get(doc_id, []))
+                doc = Document(
+                    id=doc_id,
+                    filename=metadata.get("filename", "Unknown Document"),
+                    content_type=metadata.get("content_type", "application/pdf"),
+                    file_size=metadata.get("file_size", 0),
+                    chunk_count=len(chunk_ids),
+                    chunk_ids=chunk_ids,
+                    is_embedded=True,
+                )
+                self._documents[doc_id] = doc
+                discovered += 1
+
+        if discovered > 0:
+            self._save_registry()
+            logger.info(f"Bootstrapped {discovered} documents from Pinecone")
+        else:
+            logger.info("No new documents discovered during bootstrap")
+
+        return discovered
 
     # =========================================================================
     # Private helpers for Pinecone operations
@@ -447,8 +554,9 @@ class DocumentService:
         document.chunk_ids = chunk_ids
         document.is_embedded = True
 
-        # Store document
+        # Store document and persist registry
         self._documents[doc_id] = document
+        self._save_registry()
 
         return document
 
@@ -474,8 +582,9 @@ class DocumentService:
         # Delete vectors from Pinecone
         await self.pinecone.delete_vectors(ids=document.chunk_ids)
 
-        # Remove from cache if present
+        # Remove from cache and persist
         self._documents.pop(document_id, None)
+        self._save_registry()
         return True
 
     async def get_document(self, document_id: str) -> Optional[Document]:

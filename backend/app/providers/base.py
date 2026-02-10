@@ -87,10 +87,18 @@ class BaseProvider(ABC):
                     "[Sources for reference]\n"
                     f"{context}\n\n"
                     "Guidelines:\n"
+                    "- ONLY use citation numbers that match the [Source N] headers listed above\n"
+                    "- Do NOT invent citation numbers or use reference/footnote numbers from inside the source text\n"
                     "- Add [N] citations inline where information comes from source N\n"
                     "- Multiple sources can be cited together like [1][2]\n"
                     "- Be precise - cite at the claim level, not just at the end of paragraphs\n"
                     "- Natural placement - citations should feel unobtrusive\n\n"
+                    "IMPORTANT — Source isolation:\n"
+                    "- The conversation history that follows is for continuity only\n"
+                    "- Do NOT reuse specific facts, names, affiliations, or claims from your earlier responses — "
+                    "they came from different source documents that may not apply to this question\n"
+                    "- Base ALL factual statements on the current sources listed above\n"
+                    "- If the current sources do not contain the information needed, say so rather than relying on earlier turns\n\n"
                     "Now provide an accurate and helpful response with inline citations."
                 )
             else:
@@ -104,7 +112,9 @@ class BaseProvider(ABC):
                     "- Reference documents by their filename when discussing specific content\n"
                     "- Provide thorough, accurate analysis grounded in the attached content\n"
                     "- Do NOT use numbered citation markers like [1] or [2]\n"
-                    "- If the documents don't contain enough information to answer, say so explicitly\n\n"
+                    "- If the documents don't contain enough information to answer, say so explicitly\n"
+                    "- Do NOT carry forward specific facts from your earlier responses — "
+                    "base all claims on the attached content above\n\n"
                     "Now provide a helpful response based on the attached documents."
                 )
 

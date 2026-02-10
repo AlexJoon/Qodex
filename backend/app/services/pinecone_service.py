@@ -2,8 +2,11 @@ from typing import List, Optional, Dict, Any
 from pinecone import Pinecone, ServerlessSpec
 from openai import AsyncOpenAI
 import asyncio
+import logging
 
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 class PineconeService:
@@ -193,6 +196,44 @@ class PineconeService:
         )
 
         return results
+
+    async def list_all_vector_ids(self) -> List[str]:
+        """List all vector IDs stored in the index via pagination."""
+        index = self._get_index()
+
+        def _list_sync() -> List[str]:
+            ids: List[str] = []
+            for page in index.list(namespace=""):
+                if isinstance(page, str):
+                    ids.append(page)
+                elif hasattr(page, "__iter__"):
+                    for item in page:
+                        if isinstance(item, str):
+                            ids.append(item)
+                        elif hasattr(item, "id"):
+                            ids.append(item.id)
+                        elif isinstance(item, dict) and "id" in item:
+                            ids.append(item["id"])
+            return ids
+
+        try:
+            return await asyncio.to_thread(_list_sync)
+        except Exception as e:
+            logger.error(f"Failed to list vector IDs from Pinecone: {e}")
+            return []
+
+    async def fetch_vectors(self, ids: List[str]) -> Dict[str, Dict[str, Any]]:
+        """Fetch specific vectors by ID (max 100 per call)."""
+        index = self._get_index()
+        result = await asyncio.to_thread(index.fetch, ids=ids)
+        vectors: Dict[str, Dict[str, Any]] = {}
+        if hasattr(result, "vectors"):
+            for vid, vec in result.vectors.items():
+                vectors[vid] = {
+                    "id": vid,
+                    "metadata": vec.metadata if hasattr(vec, "metadata") else {},
+                }
+        return vectors
 
     async def get_chunks_by_document(self, document_id: str) -> List[Dict[str, Any]]:
         """

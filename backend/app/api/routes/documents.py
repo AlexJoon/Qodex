@@ -161,6 +161,26 @@ async def get_document_chunks(document_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to get document chunks: {str(e)}")
 
 
+@router.post("/bootstrap")
+async def bootstrap_registry():
+    """Rebuild the document registry from Pinecone.
+
+    Discovers all documents stored in the vector DB and populates the local
+    registry cache. Useful after server restarts when the registry file is
+    missing or when documents were uploaded before persistence was added.
+    """
+    doc_service = get_document_service()
+    try:
+        count = await doc_service.bootstrap_registry()
+        return {
+            "status": "ok",
+            "documents_discovered": count,
+            "total_documents": len(doc_service.list_documents()),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Bootstrap failed: {str(e)}")
+
+
 class DocumentChatRequest(BaseModel):
     """Request model for document-specific chat."""
     message: str

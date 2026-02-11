@@ -21,10 +21,10 @@ interface ProviderActions {
 type ProviderStore = ProviderState & ProviderActions;
 
 const DEFAULT_PROVIDERS: Provider[] = [
-  { name: 'openai', display_name: 'OpenAI', model: 'gpt-4-turbo-preview', configured: false },
   { name: 'mistral', display_name: 'Mistral', model: 'mistral-large-latest', configured: false },
-  { name: 'claude', display_name: 'Claude', model: 'claude-3-sonnet-20240229', configured: false },
-  { name: 'cohere', display_name: 'Cohere', model: 'command-r-plus', configured: false },
+  { name: 'openai', display_name: 'OpenAI', model: 'gpt-4.1', configured: false },
+  { name: 'claude', display_name: 'Claude', model: 'claude-sonnet-4-5-20250929', configured: false },
+  { name: 'cohere', display_name: 'Cohere', model: 'command-a-03-2025', configured: false },
 ];
 
 export const useProviderStore = create<ProviderStore>()(
@@ -32,7 +32,7 @@ export const useProviderStore = create<ProviderStore>()(
     (set, get) => ({
       // State
       providers: DEFAULT_PROVIDERS,
-      activeProvider: 'openai',
+      activeProvider: 'mistral',
       isLoading: false,
       error: null,
 

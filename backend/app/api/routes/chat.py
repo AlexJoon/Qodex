@@ -524,16 +524,16 @@ async def list_providers():
 
     providers = [
         {
-            "name": "openai",
-            "display_name": "OpenAI",
-            "model": settings.openai_model,
-            "configured": bool(settings.openai_api_key),
-        },
-        {
             "name": "mistral",
             "display_name": "Mistral",
             "model": settings.mistral_model,
             "configured": bool(settings.mistral_api_key),
+        },
+        {
+            "name": "openai",
+            "display_name": "OpenAI",
+            "model": settings.openai_model,
+            "configured": bool(settings.openai_api_key),
         },
         {
             "name": "claude",

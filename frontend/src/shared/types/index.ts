@@ -45,7 +45,7 @@ export interface DiscussionUpdate {
 }
 
 // Provider types
-export type ProviderName = 'openai' | 'mistral' | 'claude' | 'cohere';
+export type ProviderName = 'mistral' | 'openai' | 'claude' | 'cohere';
 
 export interface Provider {
   name: ProviderName;

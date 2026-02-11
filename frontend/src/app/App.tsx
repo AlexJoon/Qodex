@@ -57,13 +57,13 @@ function AppLayout() {
 }
 
 function App() {
-  const { user, isLoading, initialize } = useAuthStore();
+  const { user, isInitializing, initialize } = useAuthStore();
 
   useEffect(() => {
     initialize();
   }, [initialize]);
 
-  if (isLoading) {
+  if (isInitializing) {
     return (
       <div className="auth-loading">
         <div className="spinner" />

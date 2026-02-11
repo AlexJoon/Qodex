@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -33,17 +34,19 @@ async def lifespan(app: FastAPI):
     }
     print(f"Configured providers: {providers_status}")
 
-    # Bootstrap document registry from Pinecone if the local cache is empty.
-    # This ensures list_documents() and filename pre-filtering work after
-    # restarts, even for documents uploaded before persistence was added.
-    doc_service = get_document_service()
-    if not doc_service.list_documents():
-        try:
-            count = await doc_service.bootstrap_registry()
-            if count:
-                print(f"Bootstrapped {count} documents from Pinecone")
-        except Exception as e:
-            print(f"Warning: document registry bootstrap failed: {e}")
+    # Bootstrap document registry from Pinecone in the background so the
+    # health check can respond immediately (prevents Render deploy timeouts).
+    async def _bootstrap():
+        doc_service = get_document_service()
+        if not doc_service.list_documents():
+            try:
+                count = await doc_service.bootstrap_registry()
+                if count:
+                    print(f"Bootstrapped {count} documents from Pinecone")
+            except Exception as e:
+                print(f"Warning: document registry bootstrap failed: {e}")
+
+    asyncio.create_task(_bootstrap())
 
     yield
 

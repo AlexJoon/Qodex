@@ -6,6 +6,7 @@ import { useDiscussionStore } from '@/features/discussions';
 interface AuthState {
   user: User | null;
   session: Session | null;
+  isInitializing: boolean;
   isLoading: boolean;
   error: string | null;
 }
@@ -24,7 +25,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
   // State
   user: null,
   session: null,
-  isLoading: true,
+  isInitializing: true,
+  isLoading: false,
   error: null,
 
   // Actions
@@ -34,7 +36,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       set({
         session,
         user: session?.user ?? null,
-        isLoading: false,
+        isInitializing: false,
       });
 
       // Listen for auth state changes
@@ -45,7 +47,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         });
       });
     } catch {
-      set({ isLoading: false });
+      set({ isInitializing: false });
     }
   },
 
@@ -56,6 +58,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       password,
       options: {
         data: { display_name: displayName || email.split('@')[0] },
+        emailRedirectTo: window.location.origin,
       },
     });
     if (error) {

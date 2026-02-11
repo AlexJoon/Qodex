@@ -9,7 +9,7 @@ from .base import BaseProvider, ProviderRegistry
 class CohereProvider(BaseProvider):
     """Cohere API provider implementation using V2 API."""
 
-    def __init__(self, api_key: str, model: str = "command-r7b-12-2024"):
+    def __init__(self, api_key: str, model: str = "command-a-03-2025"):
         super().__init__(api_key, model)
         self.client = cohere.AsyncClientV2(api_key=api_key)
 
@@ -106,7 +106,7 @@ Guidelines:
             ]
 
             response = await self.client.chat(
-                model="command-r",  # Updated model
+                model="command-a-03-2025",  # Flagship model
                 messages=messages,
                 temperature=0.7,
                 max_tokens=200

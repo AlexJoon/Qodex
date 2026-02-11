@@ -49,13 +49,13 @@ services:
         value: INFO
       # AI Models (optional overrides)
       - key: OPENAI_MODEL
-        value: gpt-4-turbo-preview
+        value: gpt-4.1
       - key: ANTHROPIC_MODEL
-        value: claude-3-sonnet-20240229
+        value: claude-sonnet-4-5-20250929
       - key: MISTRAL_MODEL
         value: mistral-large-latest
       - key: COHERE_MODEL
-        value: command-r7b-12-2024
+        value: command-a-03-2025
 
   # Frontend - Static Site with Global CDN
   - type: web

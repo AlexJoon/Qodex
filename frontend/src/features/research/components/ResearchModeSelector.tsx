@@ -1,13 +1,6 @@
 import { useResearchModeStore } from '../store';
-import { ResearchMode } from '@/shared/types';
-import { Search, Sparkles, BookOpen } from 'lucide-react';
+import { RESEARCH_MODE_UI } from '../config';
 import './ResearchModeSelector.css';
-
-const MODE_ICONS: Record<ResearchMode, React.ReactNode> = {
-  quick: <Search size={14} />,
-  enhanced: <Sparkles size={14} />,
-  deep: <BookOpen size={14} />,
-};
 
 interface ResearchModeSelectorProps {
   compact?: boolean;
@@ -19,6 +12,8 @@ export function ResearchModeSelector({ compact = false }: ResearchModeSelectorPr
   return (
     <div className={`research-mode-selector ${compact ? 'compact' : ''}`}>
       {modes.map((modeConfig) => {
+        const ui = RESEARCH_MODE_UI[modeConfig.mode];
+        const Icon = ui.icon;
         const isActive = modeConfig.mode === activeMode;
 
         return (
@@ -26,13 +21,13 @@ export function ResearchModeSelector({ compact = false }: ResearchModeSelectorPr
             key={modeConfig.mode}
             className={`research-mode-toggle ${modeConfig.mode} ${isActive ? 'active' : ''}`}
             onClick={() => setActiveMode(modeConfig.mode)}
-            title={modeConfig.description}
+            title={ui.description}
             type="button"
           >
-            {MODE_ICONS[modeConfig.mode]}
-            <span className="mode-label">{modeConfig.label}</span>
+            <Icon size={14} />
+            <span className="mode-label">{ui.label}</span>
             {!compact && (
-              <span className="mode-sources">{modeConfig.top_k}</span>
+              <span className="mode-sources">{ui.rangeLabel}</span>
             )}
           </button>
         );

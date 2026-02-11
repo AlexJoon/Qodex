@@ -19,10 +19,10 @@ class Settings(BaseSettings):
     cohere_api_key: str = ""
 
     # AI Model Configurations
-    openai_model: str = "gpt-4-turbo-preview"
-    anthropic_model: str = "claude-sonnet-4-20250514"
+    openai_model: str = "gpt-4.1"
+    anthropic_model: str = "claude-sonnet-4-5-20250929"
     mistral_model: str = "mistral-large-latest"
-    cohere_model: str = "command-r-plus"
+    cohere_model: str = "command-a-03-2025"
 
     # Pinecone Configuration
     pinecone_api_key: str = ""

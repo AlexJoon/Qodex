@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react';
 import { Mail } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useAuthStore } from '../store';
+import { getRememberMe, setRememberMe } from '@/shared/services/supabase';
 import './AuthModal.css';
 
 interface AuthModalProps {
@@ -13,11 +14,13 @@ export function AuthModal({ isOpen }: AuthModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [rememberMe, setLocalRememberMe] = useState(getRememberMe);
   const { signIn, signUp, error, isLoading, clearError } = useAuthStore();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (mode === 'login') {
+      setRememberMe(rememberMe);
       await signIn(email, password);
     } else {
       const success = await signUp(email, password, displayName || undefined);
@@ -108,6 +111,17 @@ export function AuthModal({ isOpen }: AuthModalProps) {
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             />
           </div>
+
+          {mode === 'login' && (
+            <label className="auth-remember">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setLocalRememberMe(e.target.checked)}
+              />
+              Remember me when I login
+            </label>
+          )}
 
           {error && <div className="auth-error">{error}</div>}
 

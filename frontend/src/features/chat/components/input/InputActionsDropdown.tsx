@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BadgePlus, Paperclip, Search, Sparkles, BookOpen, X, FileText, Upload, Check } from 'lucide-react';
+import { BadgePlus, Paperclip, X, FileText, Upload, Check } from 'lucide-react';
 import { useAttachmentStore } from '@/features/attachments/store';
 import { useDiscussionStore } from '@/features/discussions';
-import { useResearchModeStore } from '@/features/research';
+import { useResearchModeStore, RESEARCH_MODE_UI } from '@/features/research';
 import { ResearchMode } from '@/shared/types';
 import './InputActionsDropdown.css';
 
@@ -15,12 +15,6 @@ const ALLOWED_TYPES = [
 ];
 
 const ALLOWED_EXTENSIONS = ['.pdf', '.txt', '.md', '.docx'];
-
-const MODE_CONFIG: Record<ResearchMode, { icon: typeof Search; label: string; description: string }> = {
-  quick: { icon: Search, label: 'Quick', description: '7 sources - Fast answers' },
-  enhanced: { icon: Sparkles, label: 'Enhanced', description: '12 sources - Balanced depth' },
-  deep: { icon: BookOpen, label: 'Deep Research', description: '16 sources - Exhaustive analysis' },
-};
 
 export function InputActionsDropdown() {
   const navigate = useNavigate();
@@ -119,7 +113,7 @@ export function InputActionsDropdown() {
     setIsOpen(false);
   };
 
-  const activeModeConfig = MODE_CONFIG[activeMode];
+  const activeModeConfig = RESEARCH_MODE_UI[activeMode];
   const ActiveModeIcon = activeModeConfig.icon;
 
   return (
@@ -183,7 +177,7 @@ export function InputActionsDropdown() {
             <div className="input-actions-section-label">Research Depth</div>
 
             {modes.map((mode) => {
-              const config = MODE_CONFIG[mode.mode];
+              const config = RESEARCH_MODE_UI[mode.mode];
               const Icon = config.icon;
               const isActive = mode.mode === activeMode;
 

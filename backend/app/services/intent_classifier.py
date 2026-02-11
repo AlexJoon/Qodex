@@ -331,17 +331,15 @@ def classify_intent(message: str, has_attachments: bool = False) -> IntentResult
         intent="generalist",
         label="Generalist",
         prompt_suffix=(
-            "\n\n## Output Structure — Generalist\n"
-            "Provide a comprehensive, well-structured response:\n"
-            "### Direct Answer\n"
+            "\n\nProvide a comprehensive, well-structured response:\n"
             "- Lead with a clear, concise answer to the user's question\n"
-            "### Supporting Detail\n"
             "- Expand with relevant evidence, context, or reasoning from the sources\n"
-            "- Use bullet points for multiple supporting points\n"
-            "### Broader Context\n"
+            "- Use bullet points or numbered lists for multiple supporting points\n"
+            "- Use tables when comparing options, frameworks, data, or features across dimensions\n"
+            "- Use bold text to highlight key terms, conclusions, or important findings\n"
             "- Connect the answer to wider themes, implications, or related concepts where appropriate\n"
-            "### Key Takeaway\n"
             "- End with a brief synthesis or actionable insight\n\n"
+            "Do NOT use section headers like 'Direct Answer' or 'Key Takeaway' in your response.\n\n"
             "Adapt depth to the complexity of the question. Simple questions deserve concise answers; "
             "complex questions warrant thorough exploration. Always ground claims in source material."
         ),

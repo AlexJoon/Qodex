@@ -107,6 +107,12 @@
   flex: 1;
   overflow-y: auto;
   padding: 8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-conversations::-webkit-scrollbar {
+  display: none;
 }
 
 .sidebar-loading {

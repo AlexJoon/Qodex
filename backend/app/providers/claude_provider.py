@@ -9,7 +9,7 @@ from .base import BaseProvider, ProviderRegistry
 class ClaudeProvider(BaseProvider):
     """Anthropic Claude API provider implementation."""
 
-    def __init__(self, api_key: str, model: str = "claude-sonnet-4-20250514"):
+    def __init__(self, api_key: str, model: str = "claude-sonnet-4-5-20250929"):
         super().__init__(api_key, model)
         self.client = AsyncAnthropic(api_key=api_key)
 
@@ -110,7 +110,7 @@ Guidelines:
             ]
 
             response = await self.client.messages.create(
-                model="claude-3-haiku-20240307",  # Fast model
+                model="claude-haiku-4-5-20251001",  # Fast model
                 system=system_prompt,
                 messages=messages,
                 temperature=0.7,

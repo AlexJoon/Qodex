@@ -9,7 +9,7 @@ from .base import BaseProvider, ProviderRegistry
 class OpenAIProvider(BaseProvider):
     """OpenAI API provider implementation."""
 
-    def __init__(self, api_key: str, model: str = "gpt-4-turbo-preview"):
+    def __init__(self, api_key: str, model: str = "gpt-4.1"):
         super().__init__(api_key, model)
         self.client = AsyncOpenAI(api_key=api_key)
 
@@ -69,7 +69,7 @@ Guidelines:
             ]
 
             response = await self.client.chat.completions.create(
-                model="gpt-4o-mini",  # Fast, cheap model for question generation
+                model="gpt-4.1-mini",  # Fast, cheap model for question generation
                 messages=messages,
                 temperature=0.7,
                 max_tokens=200

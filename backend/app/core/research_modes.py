@@ -25,6 +25,7 @@ class ResearchModeConfig:
     label: str              # Display name for UI
     description: str        # UI tooltip/description
     top_k: int              # Number of sources to retrieve
+    min_score: float        # Minimum cosine similarity to include a source
     prompt_enhancement: str # Additional system prompt instructions
 
 
@@ -32,8 +33,9 @@ RESEARCH_MODE_DEFINITIONS: Dict[ResearchMode, ResearchModeConfig] = {
     ResearchMode.QUICK: ResearchModeConfig(
         mode=ResearchMode.QUICK,
         label="Quick",
-        description="Fast answers with key sources (7 sources)",
+        description="Focused search across your most relevant sources",
         top_k=7,
+        min_score=0.40,
         prompt_enhancement=(
             "\n\n## Research Depth: Quick\n"
             "Provide a focused, efficient response:\n"
@@ -46,33 +48,44 @@ RESEARCH_MODE_DEFINITIONS: Dict[ResearchMode, ResearchModeConfig] = {
     ResearchMode.ENHANCED: ResearchModeConfig(
         mode=ResearchMode.ENHANCED,
         label="Enhanced",
-        description="Balanced depth with broader coverage (12 sources)",
+        description="Broader search to find and connect more sources",
         top_k=12,
+        min_score=0.30,
         prompt_enhancement=(
-            "\n\n## Research Depth: Enhanced\n"
-            "Provide a thorough, well-rounded response:\n"
-            "- Draw from multiple sources to build a comprehensive picture\n"
-            "- Include supporting evidence and relevant context\n"
-            "- Note areas of consensus and any divergent findings\n"
-            "- Synthesize across sources to identify patterns\n"
-            "- Use 4-8 citations distributed across your response"
+            "\n\nProvide a thorough, well-structured response that draws from as many sources as possible. "
+            "Go beyond the surface — include supporting evidence, relevant context, and connections "
+            "between sources. Note where sources agree or diverge. Synthesize across sources to "
+            "identify patterns and build a comprehensive picture.\n\n"
+            "Use structured formatting to make the response easy to scan:\n"
+            "- Use bullet points or numbered lists for key findings, comparisons, or takeaways\n"
+            "- Use tables when comparing data, frameworks, or options across multiple dimensions\n"
+            "- Use bold text for important terms or conclusions\n"
+            "- Break the response into clear sections with descriptive subheadings\n\n"
+            "Use 4-8 citations distributed across your response. "
+            "Draw from the broadest range of provided sources — do not rely on just 2-3."
         ),
     ),
     ResearchMode.DEEP: ResearchModeConfig(
         mode=ResearchMode.DEEP,
         label="Deep Research",
-        description="Exhaustive analysis with maximum sources (16 sources)",
+        description="Widest net for the most thorough, exhaustive analysis",
         top_k=16,
+        min_score=0.25,
         prompt_enhancement=(
-            "\n\n## Research Depth: Deep Research\n"
-            "Provide an exhaustive, scholarly response:\n"
-            "- Conduct a comprehensive review across all available sources\n"
-            "- Present nuanced analysis with multiple perspectives\n"
-            "- Identify methodological approaches, strengths, and limitations\n"
-            "- Synthesize findings into coherent themes and patterns\n"
-            "- Note gaps in the literature and areas of uncertainty\n"
-            "- Discuss implications for policy, practice, or further research\n"
-            "- Use extensive citations (8+) to ground all claims"
+            "\n\nProvide an exhaustive, scholarly-level response. This should read like a "
+            "thorough research briefing. Conduct a comprehensive review across all available sources. "
+            "Present nuanced analysis with multiple perspectives and competing viewpoints.\n\n"
+            "Use structured formatting throughout to make the response scannable and rigorous:\n"
+            "- Use bullet points or numbered lists for key findings, evidence, and takeaways\n"
+            "- Use tables when comparing data, frameworks, methodologies, or options across dimensions\n"
+            "- Use bold text for important terms, conclusions, or critical findings\n"
+            "- Break the response into clear thematic sections with descriptive subheadings\n\n"
+            "Identify methodological approaches, strengths, and limitations in the source material. "
+            "Synthesize findings into coherent themes, noting gaps and areas of uncertainty. "
+            "Discuss implications for policy, practice, or further research where relevant.\n\n"
+            "Use extensive citations (8+) distributed across the response to ground every major claim. "
+            "Draw from the broadest range of provided sources — do not rely on just 2-3. "
+            "Aim for maximum depth and rigor."
         ),
     ),
 }

@@ -31,8 +31,8 @@ logger = logging.getLogger(__name__)
 
 _CITATION_RE = re.compile(r'\[\d+\]')
 
-# Minimum cosine similarity to include a source in context
-_MIN_SCORE = 0.45
+# Fallback minimum cosine similarity (used only if research config lacks min_score)
+_MIN_SCORE = 0.40
 
 
 def _match_documents_by_filename(query: str, documents) -> Optional[List[str]]:
@@ -311,12 +311,13 @@ async def stream_chat(
                     )
                     fname_hit = any(t in fname_lower for t in query_terms)
 
+                    min_score = getattr(research_config, 'min_score', _MIN_SCORE)
                     if content_hit:
                         threshold = 0.0   # all keywords in text → accept
                     elif fname_hit:
                         threshold = 0.20  # keyword in filename → lenient
                     else:
-                        threshold = _MIN_SCORE  # pure semantic match
+                        threshold = min_score  # per-mode semantic threshold
 
                 if score > threshold:
                     doc_id = metadata.get("document_id", result["id"])

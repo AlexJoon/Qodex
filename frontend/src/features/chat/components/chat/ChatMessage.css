@@ -377,7 +377,7 @@
 .message-body.streaming table,
 .message-body.streaming blockquote,
 .message-body.streaming hr {
-  animation: ft-fadeIn 0.8s ease-out;
+  animation: ft-fadeIn 1.2s ease-out;
 }
 
 .message-body p {

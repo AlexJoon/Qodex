@@ -388,6 +388,21 @@ async def stream_chat(
             pass  # RAG was cancelled
         except Exception as e:
             logger.warning(f"Pinecone search failed: {e}")
+            # If the knowledge base is unavailable (e.g. embedding quota
+            # exceeded), abort with a user-facing message instead of
+            # silently returning an answer without sources.
+            error_msg = (
+                "The knowledge base is temporarily unavailable. "
+                "Please try again later or contact "
+                "openclimatecurriculum@gsb.columbia.edu for assistance."
+            )
+            async def _error_stream():
+                yield f"data: {json.dumps({'type': 'error', 'error': error_msg, 'provider': request.provider})}\n\n"
+            return StreamingResponse(
+                _error_stream(),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+            )
 
     # Inject conversation-scoped attachment context (never touches Pinecone)
     attachment_context = attachment_service.get_context_for_chat(

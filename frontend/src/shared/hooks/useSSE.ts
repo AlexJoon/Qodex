@@ -76,7 +76,11 @@ export function useSSE() {
           } else if (event.type === 'suggested_questions') {
             setStreamSuggestedQuestions(event.questions);
           } else if (event.type === 'error') {
-            throw new Error(event.error);
+            // Show the error as an assistant message so the user sees it in chat
+            appendToStream(event.error);
+            flushChunks();
+            finalizeStream(messageIdRef.current);
+            return;
           } else if (event.type === 'done') {
             flushChunks();
             finalizeStream(messageIdRef.current);

@@ -499,7 +499,7 @@ async def stream_chat(
             suggested_questions = await provider.generate_suggested_questions(
                 conversation_history=conversation_history,
                 last_response=full_response_text,
-                count=5
+                count=4
             )
 
             # Send suggested questions event if any generated

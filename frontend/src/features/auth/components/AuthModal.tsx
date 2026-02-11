@@ -1,5 +1,4 @@
 import { useState, FormEvent } from 'react';
-import { Mail } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useAuthStore } from '../store';
 import { getRememberMe, setRememberMe } from '@/shared/services/supabase';
@@ -59,9 +58,6 @@ export function AuthModal({ isOpen }: AuthModalProps) {
 
       {mode === 'confirm' ? (
         <div className="auth-confirm">
-          <div className="auth-confirm-icon">
-            <Mail size={32} />
-          </div>
           <p className="auth-confirm-text">
             We've sent a confirmation link to <strong>{email}</strong>. Please check your inbox and click the link to activate your account.
           </p>

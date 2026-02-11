@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Send, MessageSquare, Bot, ArrowUpRight, BookOpen } from 'lucide-react';
 import { useDocumentPreviewStore } from '@/features/documents';
 import { useAuthStore } from '@/features/auth';
@@ -13,7 +15,7 @@ interface DocumentChatProps {
 
 export function DocumentChat({ documentId, documentContent }: DocumentChatProps) {
   const [inputValue, setInputValue] = useState('');
-  const [activeTab, setActiveTab] = useState<'chat' | 'materials'>('materials');
+  const [activeTab, setActiveTab] = useState<'chat' | 'materials'>('chat');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const AvatarIcon = getAvatarIcon(useAuthStore((s) => s.user?.user_metadata?.avatar_icon));
 
@@ -50,18 +52,18 @@ export function DocumentChat({ documentId, documentContent }: DocumentChatProps)
       <div className="document-chat-header">
         <div className="dive-tab-toggle">
           <button
-            className={`dive-tab ${activeTab === 'materials' ? 'active' : ''}`}
-            onClick={() => setActiveTab('materials')}
-          >
-            <BookOpen size={14} />
-            Find Materials
-          </button>
-          <button
             className={`dive-tab ${activeTab === 'chat' ? 'active' : ''}`}
             onClick={() => setActiveTab('chat')}
           >
             <MessageSquare size={14} />
             Chat
+          </button>
+          <button
+            className={`dive-tab ${activeTab === 'materials' ? 'active' : ''}`}
+            onClick={() => setActiveTab('materials')}
+          >
+            <BookOpen size={14} />
+            Find Materials
           </button>
         </div>
       </div>
@@ -126,8 +128,12 @@ export function DocumentChat({ documentId, documentContent }: DocumentChatProps)
                   )}
                 </div>
                 <div className="message-content">
-                  <div className="message-text">
-                    {message.content}
+                  <div className={`message-text ${message.role === 'assistant' ? 'markdown-body' : ''}`}>
+                    {message.role === 'assistant' ? (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                    ) : (
+                      message.content
+                    )}
                   </div>
                   <div className="message-time">
                     {new Date(message.timestamp).toLocaleTimeString()}
@@ -142,8 +148,8 @@ export function DocumentChat({ documentId, documentContent }: DocumentChatProps)
                   <Bot size={16} />
                 </div>
                 <div className="message-content">
-                  <div className="message-text">
-                    {documentChatContent}
+                  <div className="message-text markdown-body streaming">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{documentChatContent}</ReactMarkdown>
                     <span className="streaming-cursor">|</span>
                   </div>
                 </div>

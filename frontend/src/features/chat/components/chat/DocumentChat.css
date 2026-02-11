@@ -331,6 +331,139 @@
   transform: none;
 }
 
+/* Markdown Body (assistant messages) */
+.document-chat .markdown-body {
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.document-chat .markdown-body p {
+  margin-bottom: 8px;
+}
+
+.document-chat .markdown-body p:last-child {
+  margin-bottom: 0;
+}
+
+.document-chat .markdown-body ul,
+.document-chat .markdown-body ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.document-chat .markdown-body ul {
+  list-style-type: disc;
+}
+
+.document-chat .markdown-body ol {
+  list-style-type: decimal;
+}
+
+.document-chat .markdown-body li {
+  margin: 4px 0;
+  display: list-item;
+}
+
+.document-chat .markdown-body h1,
+.document-chat .markdown-body h2,
+.document-chat .markdown-body h3,
+.document-chat .markdown-body h4 {
+  font-weight: 600;
+  margin-top: 12px;
+  margin-bottom: 6px;
+  color: inherit;
+}
+
+.document-chat .markdown-body h1:first-child,
+.document-chat .markdown-body h2:first-child,
+.document-chat .markdown-body h3:first-child,
+.document-chat .markdown-body h4:first-child {
+  margin-top: 0;
+}
+
+.document-chat .markdown-body h1 { font-size: 1.25em; }
+.document-chat .markdown-body h2 { font-size: 1.15em; }
+.document-chat .markdown-body h3 { font-size: 1.05em; }
+.document-chat .markdown-body h4 { font-size: 1em; }
+
+.document-chat .markdown-body strong {
+  font-weight: 600;
+}
+
+.document-chat .markdown-body code {
+  padding: 1px 4px;
+  background-color: rgba(0, 0, 0, 0.06);
+  border-radius: 3px;
+  font-family: 'SF Mono', Monaco, monospace;
+  font-size: 0.85em;
+}
+
+.document-chat .markdown-body pre {
+  margin: 8px 0;
+  padding: 10px;
+  background-color: #1e293b;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.document-chat .markdown-body pre code {
+  background: none;
+  padding: 0;
+  color: #e2e8f0;
+  font-size: 0.8em;
+  line-height: 1.5;
+}
+
+.document-chat .markdown-body table {
+  width: 100%;
+  margin: 8px 0;
+  border-collapse: collapse;
+  font-size: 0.82em;
+}
+
+.document-chat .markdown-body th,
+.document-chat .markdown-body td {
+  padding: 6px 8px;
+  border: 1px solid #dbeafe;
+  text-align: left;
+}
+
+.document-chat .markdown-body th {
+  background-color: #f8fafc;
+  font-weight: 600;
+}
+
+.document-chat .markdown-body hr {
+  margin: 12px 0;
+  border: none;
+  border-top: 1px solid #dbeafe;
+}
+
+.document-chat .markdown-body a {
+  color: var(--qodex-primary);
+  text-decoration: underline;
+}
+
+.document-chat .markdown-body blockquote {
+  margin: 8px 0;
+  padding-left: 12px;
+  border-left: 3px solid #dbeafe;
+  color: #64748b;
+}
+
+/* Streaming fade for markdown elements */
+.document-chat .markdown-body.streaming p,
+.document-chat .markdown-body.streaming li,
+.document-chat .markdown-body.streaming h1,
+.document-chat .markdown-body.streaming h2,
+.document-chat .markdown-body.streaming h3,
+.document-chat .markdown-body.streaming h4,
+.document-chat .markdown-body.streaming pre,
+.document-chat .markdown-body.streaming table,
+.document-chat .markdown-body.streaming blockquote {
+  animation: documentChatFadeIn 1.2s ease-out;
+}
+
 /* Scrollbar styling */
 .document-chat .document-chat-messages::-webkit-scrollbar {
   width: 6px;

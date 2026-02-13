@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from datetime import datetime
 import uuid
 import time
@@ -35,57 +35,13 @@ _CITATION_RE = re.compile(r'\[\d+\]')
 _MIN_SCORE = 0.40
 
 
-def _match_documents_by_filename(query: str, documents) -> Optional[List[str]]:
-    """Pre-filter documents by matching query terms against filenames.
-
-    If the query contains words that closely match a filename, restrict the
-    Pinecone search to those documents. This prevents structurally similar
-    but content-irrelevant documents from polluting the results.
-
-    Returns a list of document_ids if matches are found, otherwise None
-    (meaning: search across all documents).
-    """
-    if not documents:
-        return None
-
-    query_lower = query.lower()
-    # Tokenize query into meaningful words (3+ chars, skip stop words)
-    stop_words = {
-        "the", "and", "for", "are", "but", "not", "you", "all", "can",
-        "had", "her", "was", "one", "our", "out", "has", "his", "how",
-        "its", "may", "new", "now", "old", "see", "way", "who", "did",
-        "get", "let", "say", "she", "too", "use", "what", "when", "where",
-        "which", "while", "with", "this", "that", "from", "about", "some",
-        "them", "then", "than", "into", "over", "such", "list", "give",
-        "tell", "show", "find", "readings", "documents", "document",
-        "syllabus", "syllabi", "course", "class", "what", "does",
-    }
-    query_words = [
-        w for w in re.findall(r'[a-z]+', query_lower)
-        if len(w) >= 3 and w not in stop_words
-    ]
-
-    if not query_words:
-        return None
-
-    matched_ids = []
-    for doc in documents:
-        fname_lower = doc.filename.lower()
-        # Strip extension and split filename into tokens
-        fname_base = re.sub(r'\.[^.]+$', '', fname_lower)
-        fname_tokens = set(re.findall(r'[a-z]+', fname_base))
-
-        for qw in query_words:
-            # Match if query word appears as a substring in the filename
-            if qw in fname_lower or any(qw in ft for ft in fname_tokens):
-                matched_ids.append(doc.id)
-                break
-
-    return matched_ids if matched_ids else None
-
-
 def _extract_query_terms(query: str) -> List[str]:
-    """Extract meaningful terms from a query for filename post-filtering."""
+    """Extract meaningful terms from a query for entity-content matching.
+
+    Returns non-stop-word terms that represent the semantic "payload" of the
+    query — person names, topics, material types.  These are used to boost
+    Pinecone results whose chunk content mentions the same terms.
+    """
     stop_words = {
         "the", "and", "for", "are", "but", "not", "you", "all", "can",
         "had", "her", "was", "one", "our", "out", "has", "his", "how",
@@ -93,13 +49,96 @@ def _extract_query_terms(query: str) -> List[str]:
         "get", "let", "say", "she", "too", "use", "what", "when", "where",
         "which", "while", "with", "this", "that", "from", "about", "some",
         "them", "then", "than", "into", "over", "such", "list", "give",
-        "tell", "show", "find", "readings", "documents", "document",
-        "syllabus", "syllabi", "course", "class", "does", "teach",
+        "tell", "show", "find", "does", "other", "more", "also",
     }
     return [
         w for w in re.findall(r'[a-z]+', query.lower())
         if len(w) >= 3 and w not in stop_words
     ]
+
+
+def _compute_entity_boost(content_lower: str, query_terms: List[str]) -> float:
+    """Boost score for chunks that contain query terms in their content.
+
+    When a user asks about a specific person (e.g., "bruce usher's readings"),
+    the embedding similarity is weak because embeddings prioritize topical
+    similarity over entity-name matching.  But the entity name IS in the chunk
+    text (as instructor/author).  This function detects that overlap and returns
+    a score boost so entity-matched results rank above topically-similar but
+    entity-irrelevant results.
+
+    Boost tiers:
+      - ALL query terms found  → +0.30  (strong entity match)
+      - ≥50% of terms found   → +0.15  (partial entity match)
+      - <50% but at least one  → +0.05  (weak signal)
+      - No matches             → 0.0
+    """
+    if not query_terms:
+        return 0.0
+
+    matches = sum(1 for t in query_terms if t in content_lower)
+    if matches == 0:
+        return 0.0
+
+    ratio = matches / len(query_terms)
+
+    if ratio >= 1.0:
+        return 0.30
+    elif ratio >= 0.5:
+        return 0.15
+    else:
+        return 0.05
+
+
+def _extract_person_names(query: str) -> List[str]:
+    """Extract instructor names by generating n-grams and validating against index.
+
+    Strategy:
+    1. Tokenize query into words (alphanumeric only)
+    2. Generate all 2-word and 3-word sliding windows (n-grams)
+    3. Normalize each n-gram (lowercase)
+    4. Check if it exists in the instructor index
+    5. Return all validated matches
+
+    Examples:
+    - "what does bruce usher teach" → ["bruce usher"]
+    - "Bruce Usher readings" → ["bruce usher"]
+    - "compare Harrison Hong and Sheila Foster" → ["harrison hong", "sheila foster"]
+    - "what is ESG" → []
+    """
+    # Tokenize into words (alphanumeric only)
+    tokens = re.findall(r'[a-zA-Z]+', query)
+    if len(tokens) < 2:
+        return []
+
+    # Get instructor index from document service
+    doc_service = get_document_service()
+    instructor_index = doc_service.instructor_index
+    if not instructor_index:
+        return []
+
+    found_names = set()
+    used_positions = set()  # Track which positions are part of a match
+
+    # Try 3-word combinations first (more specific matches)
+    for i in range(len(tokens) - 2):
+        if i in used_positions or i+1 in used_positions or i+2 in used_positions:
+            continue
+        ngram = ' '.join(tokens[i:i+3]).lower()
+        if ngram in instructor_index:
+            found_names.add(ngram)
+            used_positions.update([i, i+1, i+2])
+
+    # Try 2-word combinations
+    for i in range(len(tokens) - 1):
+        if i in used_positions or i+1 in used_positions:
+            continue
+        ngram = ' '.join(tokens[i:i+2]).lower()
+        if ngram in instructor_index:
+            found_names.add(ngram)
+            used_positions.update([i, i+1])
+
+    return list(found_names)
 
 
 def _sanitize_history_messages(messages: List[Message]) -> List[Message]:
@@ -133,6 +172,76 @@ def _sanitize_history_messages(messages: List[Message]) -> List[Message]:
         else:
             sanitized.append(msg)
     return sanitized
+
+
+async def _rewrite_search_query(
+    current_message: str,
+    context_messages: List[Message],
+    settings,
+) -> str:
+    """Rewrite a follow-up into a standalone search query using conversation context.
+
+    For the first message in a conversation (no prior user messages),
+    returns the message unchanged.  For follow-ups, uses a fast LLM to
+    resolve pronouns and implicit references so Pinecone retrieves the
+    right documents.
+    """
+    # Only rewrite when there is prior conversation context
+    prior_user_msgs = [m for m in context_messages if m.role == MessageRole.USER]
+    if not prior_user_msgs:
+        return current_message
+
+    # Require Mistral key for the fast rewrite model
+    if not settings.mistral_api_key:
+        return current_message
+
+    try:
+        from mistralai import Mistral
+
+        client = Mistral(api_key=settings.mistral_api_key)
+
+        # Compact history: last few user messages (excluding the current one,
+        # which was already added to the DB before context_messages was fetched)
+        recent = [m.content for m in prior_user_msgs[-3:]]
+        history_lines = "\n".join(f"- {msg}" for msg in recent)
+
+        response = await client.chat.complete_async(
+            model="mistral-small-latest",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a search query rewriter. Given prior questions and a follow-up, "
+                        "rewrite the follow-up into a standalone search query.\n\n"
+                        "Rules:\n"
+                        "- Resolve pronouns (he, she, it, they, this, that) using context\n"
+                        "- If the follow-up already names a specific person/topic, return it unchanged\n"
+                        "- If the follow-up is a completely new topic, return it unchanged\n"
+                        "- Keep the rewritten query concise and natural\n"
+                        "- Return ONLY the rewritten query, nothing else"
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Previous questions:\n{history_lines}\n\n"
+                        f"Follow-up: {current_message}\n\n"
+                        "Rewritten query:"
+                    ),
+                },
+            ],
+            temperature=0.0,
+            max_tokens=100,
+        )
+
+        rewritten = response.choices[0].message.content.strip().strip('"')
+        if rewritten:
+            logger.info(f"Query rewritten: '{current_message}' -> '{rewritten}'")
+            return rewritten
+        return current_message
+    except Exception as e:
+        logger.warning(f"Query rewrite failed, using original: {e}")
+        return current_message
 
 
 class ChatRequest(BaseModel):
@@ -221,32 +330,55 @@ async def stream_chat(
     # Get research mode configuration
     research_config = get_research_mode_config(request.research_mode)
 
+    # Get conversation context early — needed for query rewriting AND
+    # later passed to the provider.  Sanitized to prevent stale source
+    # facts from bleeding into the current RAG turn.
+    raw_messages = disc_service.get_context_messages(request.discussion_id, limit=20)
+    context_messages = _sanitize_history_messages(raw_messages)
+
+    # Rewrite the follow-up query so Pinecone retrieves documents relevant
+    # to the conversational context (resolves pronouns, implicit refs).
+    search_query = await _rewrite_search_query(
+        request.message, context_messages, settings
+    )
+
     # Start RAG search in parallel with provider setup — but only when the
     # intent classifier says the knowledge base is needed.
     doc_service = get_document_service()
     rag_task = None
-    search_doc_ids = None
+    search_doc_ids = request.document_ids if request.document_ids else None
     if intent_result.use_knowledge_base:
-        # Determine which documents to search.
-        # If the caller passed explicit document_ids, use those.
-        # Otherwise, try to narrow by matching query terms against filenames.
-        search_doc_ids = request.document_ids if request.document_ids else None
+        # Entity-first filtering: detect instructor names and restrict search
+        # to their documents BEFORE semantic search.  This solves the problem
+        # where Pinecone's semantic search returns topically similar but entity-
+        # irrelevant documents (e.g., other professors' syllabi when asking about
+        # "Bruce Usher's readings").
         if not search_doc_ids:
-            all_docs = doc_service.list_documents()
-            search_doc_ids = _match_documents_by_filename(request.message, all_docs)
+            person_names = _extract_person_names(request.message)
+            if person_names:
+                # Try to find documents by the first detected person (primary entity)
+                instructor_docs = doc_service.get_documents_by_instructor(person_names[0])
+                if instructor_docs:
+                    logger.info(f"Entity-filtered search: detected {person_names}, "
+                               f"restricting to {len(instructor_docs)} docs by {person_names[0]}")
+                    search_doc_ids = instructor_docs
+                else:
+                    logger.debug(f"Instructor '{person_names[0]}' not found in index, using full corpus")
+            else:
+                logger.debug(f"No person names detected in query: {request.message}")
 
-        # Over-fetch from Pinecone so keyword post-filtering has enough
-        # candidates.  Entity-name queries ("gernot wagner") score low
+        # Over-fetch from Pinecone so entity-boosted re-ranking has enough
+        # candidates.  Entity-name queries ("bruce usher") score low
         # semantically; retrieving more chunks increases the chance the
-        # relevant ones appear at all.  The threshold logic below trims
-        # the set back down before building context.
+        # relevant ones appear at all.  The re-ranking + threshold logic
+        # below trims the set back down before building context.
         pinecone_top_k = max(research_config.top_k * 3, 20)
 
         rag_task = asyncio.create_task(
             doc_service.pinecone.search_documents(
-                query=request.message,
+                query=search_query,
                 top_k=pinecone_top_k,
-                document_ids=search_doc_ids,
+                document_ids=search_doc_ids,  # Now includes entity-filtered IDs
             )
         )
 
@@ -262,11 +394,6 @@ async def stream_chat(
             rag_task.cancel()  # Cancel pending RAG if provider fails
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Get conversation context (last N messages), sanitized to prevent
-    # stale source facts from bleeding into the current RAG turn.
-    raw_messages = disc_service.get_context_messages(request.discussion_id, limit=20)
-    context_messages = _sanitize_history_messages(raw_messages)
-
     # Now await the RAG results (if Pinecone was queried)
     context = None
     sources: List[DocumentSource] = []
@@ -275,13 +402,14 @@ async def stream_chat(
         try:
             search_results = await rag_task
 
-            # Build query terms for post-filter filename matching
-            query_terms = _extract_query_terms(request.message)
+            # Extract query terms for entity-content boosting
+            query_terms = _extract_query_terms(search_query)
 
             # Deduplicate by document: group chunks, assign ONE citation per document.
             # All chunks still go into context (for AI thoroughness), but share a citation number.
-            # The source entry uses the highest score and best chunk from each document.
-            doc_groups: dict = {}  # doc_id -> { chunks: [...], best_score, best_chunk_id, best_preview, filename }
+            # The source entry uses the highest effective score and best chunk from each document.
+            doc_groups: dict = {}  # doc_id -> { chunks, best_score, best_chunk_id, best_preview, filename }
+            min_score = getattr(research_config, 'min_score', _MIN_SCORE)
 
             for result in search_results:
                 metadata = result.get("metadata")
@@ -290,36 +418,28 @@ async def stream_chat(
                 if not metadata:
                     continue
 
-                # Tiered threshold — decides whether to include this chunk:
-                # 1. Pre-filtered (filename already matched): accept all
-                # 2. ALL query terms found in chunk content: accept (strong
-                #    keyword hit — works for entity names like "gernot wagner"
-                #    without being tripped by generic topic words like "climate")
-                # 3. Query terms found in FILENAME: low threshold (0.20)
-                # 4. No keyword hit: standard semantic threshold (0.45)
+                content_lower = metadata.get("content", "").lower()
+
+                # Entity-aware re-ranking: boost chunks whose content
+                # mentions the queried entity (person name, topic, etc.)
+                # so they rank above topically-similar but entity-irrelevant
+                # results.  e.g. a chunk at cosine 0.33 that mentions
+                # "Bruce Usher" gets boosted to 0.63, outranking an
+                # unrelated syllabus at 0.48.
+                entity_boost = _compute_entity_boost(content_lower, query_terms)
+                effective_score = score + entity_boost
+
+                # Threshold: entity-matched chunks always pass;
+                # pre-filtered (caller-supplied doc_ids) always pass;
+                # everything else must meet the research-mode min_score.
                 if pre_filtered:
                     threshold = 0.0
+                elif entity_boost > 0:
+                    threshold = 0.0
                 else:
-                    content_lower = metadata.get("content", "").lower()
-                    fname_lower = metadata.get("filename", "").lower()
-                    # Require ALL query terms in content for a strong match.
-                    # "gernot" + "wagner" both in text → strong signal.
-                    # "climate" alone in text → too generic to bypass threshold.
-                    content_hit = (
-                        len(query_terms) >= 2
-                        and all(t in content_lower for t in query_terms)
-                    )
-                    fname_hit = any(t in fname_lower for t in query_terms)
+                    threshold = min_score
 
-                    min_score = getattr(research_config, 'min_score', _MIN_SCORE)
-                    if content_hit:
-                        threshold = 0.0   # all keywords in text → accept
-                    elif fname_hit:
-                        threshold = 0.20  # keyword in filename → lenient
-                    else:
-                        threshold = min_score  # per-mode semantic threshold
-
-                if score > threshold:
+                if effective_score > threshold:
                     doc_id = metadata.get("document_id", result["id"])
                     chunk_id = result.get("id")
                     filename = metadata.get("filename", "Unknown")
@@ -329,15 +449,15 @@ async def stream_chat(
                         doc_groups[doc_id] = {
                             "filename": filename,
                             "chunks": [],
-                            "best_score": score,
+                            "best_score": effective_score,
                             "best_chunk_id": chunk_id,
                             "best_preview": content[:150] + "..." if len(content) > 150 else content,
                         }
 
                     group = doc_groups[doc_id]
                     group["chunks"].append(content)
-                    if score > group["best_score"]:
-                        group["best_score"] = score
+                    if effective_score > group["best_score"]:
+                        group["best_score"] = effective_score
                         group["best_chunk_id"] = chunk_id
                         group["best_preview"] = content[:150] + "..." if len(content) > 150 else content
 

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SquarePen, MessageSquare, Settings, User, Trash2, PanelLeftClose, PanelLeft, MoreVertical, Check, Copy, LogOut, Sparkles, Compass, GraduationCap, Mail, Globe, ChevronRight } from 'lucide-react';
+import { SquarePen, MessageSquare, Settings, User, Trash2, PanelLeftClose, PanelLeft, MoreVertical, Check, Copy, LogOut, Sparkles, Compass, GraduationCap, Mail, Globe, ChevronRight, Menu, X } from 'lucide-react';
 import { getAvatarIcon } from '@/shared/constants/avatarIcons';
 import { useDiscussionStore } from '@/features/discussions';
 import { useChatStore } from '@/features/chat';
@@ -17,6 +17,7 @@ import './Sidebar.css';
 export function Sidebar() {
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showSampleQuestions, setShowSampleQuestions] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -115,6 +116,8 @@ export function Sidebar() {
     navigate(`/chat/${id}`);
     // Also call API to mark as active on backend (fire-and-forget)
     activateDiscussion(id);
+    // Close mobile menu when selecting a discussion
+    setIsMobileMenuOpen(false);
   };
 
   // Group discussions by date
@@ -148,7 +151,23 @@ export function Sidebar() {
   const grouped = groupByDate(discussions);
 
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+    <>
+      {/* Mobile hamburger button */}
+      <button
+        className="mobile-menu-btn"
+        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        aria-label="Toggle menu"
+      >
+        {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+      </button>
+
+      {/* Mobile overlay */}
+      <div
+        className={`sidebar-overlay ${isMobileMenuOpen ? 'active' : ''}`}
+        onClick={() => setIsMobileMenuOpen(false)}
+      />
+
+      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'mobile-menu-open' : ''}`}>
       {/* Header */}
       <div className="sidebar-header">
         <div className="sidebar-logo">
@@ -351,6 +370,7 @@ export function Sidebar() {
         onConfirm={handleDeleteAll}
       />
     </aside>
+    </>
   );
 }
 

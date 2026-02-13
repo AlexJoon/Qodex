@@ -95,6 +95,16 @@ class DiscussionService:
         )
         return bool(resp.data)
 
+    def delete_all_discussions(self, user_id: str) -> int:
+        """Delete all discussions for a user. Returns count of deleted discussions."""
+        resp = (
+            self._client.table("discussions")
+            .delete()
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return len(resp.data) if resp.data else 0
+
     def deactivate_all(self, user_id: str) -> None:
         self._client.table("discussions").update(
             {"is_active": False}

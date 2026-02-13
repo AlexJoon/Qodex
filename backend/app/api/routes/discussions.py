@@ -76,6 +76,16 @@ async def delete_discussion(
     return {"status": "deleted", "id": discussion_id}
 
 
+@router.delete("")
+async def delete_all_discussions(
+    user_id: str = Depends(get_current_user_id),
+):
+    """Delete all discussions for the authenticated user."""
+    service = get_discussion_service()
+    deleted_count = service.delete_all_discussions(user_id)
+    return {"status": "deleted", "count": deleted_count}
+
+
 @router.post("/{discussion_id}/messages", response_model=Message)
 async def add_message(
     discussion_id: str,

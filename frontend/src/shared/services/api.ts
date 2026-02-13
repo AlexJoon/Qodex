@@ -85,6 +85,12 @@ class ApiService {
     });
   }
 
+  async deleteAllDiscussions(): Promise<{ status: string; count: number }> {
+    return this.request<{ status: string; count: number }>('/api/discussions', {
+      method: 'DELETE',
+    });
+  }
+
   async activateDiscussion(id: string): Promise<Discussion> {
     return this.request<Discussion>(`/api/discussions/${id}/activate`, {
       method: 'POST',

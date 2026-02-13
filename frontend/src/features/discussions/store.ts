@@ -13,6 +13,7 @@ interface DiscussionActions {
   fetchDiscussions: () => Promise<void>;
   createDiscussion: (data?: DiscussionCreate) => Promise<Discussion>;
   deleteDiscussion: (id: string) => Promise<void>;
+  deleteAllDiscussions: () => Promise<void>;
   setActiveDiscussionId: (id: string | null) => void;  // Local state only - no API call
   activateDiscussion: (id: string) => Promise<void>;   // API call to mark as active on backend
   updateDiscussionTitle: (id: string, title: string) => Promise<void>;
@@ -71,6 +72,21 @@ export const useDiscussionStore = create<DiscussionStore>((set, get) => ({
           activeDiscussionId: newActiveId,
           isLoading: false,
         };
+      });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+      throw error;
+    }
+  },
+
+  deleteAllDiscussions: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.deleteAllDiscussions();
+      set({
+        discussions: [],
+        activeDiscussionId: null,
+        isLoading: false,
       });
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });

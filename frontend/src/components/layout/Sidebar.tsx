@@ -10,6 +10,7 @@ import logo from '../../assets/qodex-logo.png';
 import { SampleQuestionsDropdown } from './SampleQuestionsDropdown';
 import { ContactModal } from './ContactModal';
 import { AccountSettingsModal } from './AccountSettingsModal';
+import { DeleteAllModal } from './DeleteAllModal';
 import { SAMPLE_QUESTIONS } from '@/shared/constants/sampleQuestions';
 import './Sidebar.css';
 
@@ -21,6 +22,7 @@ export function Sidebar() {
   const [showContactModal, setShowContactModal] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
   const sampleQuestionsRef = useRef<HTMLDivElement>(null);
@@ -31,6 +33,7 @@ export function Sidebar() {
     fetchDiscussions,
     createDiscussion,
     deleteDiscussion,
+    deleteAllDiscussions,
     activateDiscussion,
     setActiveDiscussionId,
   } = useDiscussionStore();
@@ -94,6 +97,17 @@ export function Sidebar() {
   const handleLogout = async () => {
     setShowSettingsMenu(false);
     await signOut();
+  };
+
+  const handleDeleteAll = async () => {
+    try {
+      await deleteAllDiscussions();
+      clearMessages();
+      setActiveDiscussionId(null);
+      navigate('/chat');
+    } catch (error) {
+      console.error('Failed to delete all discussions:', error);
+    }
   };
 
   const handleSelectDiscussion = (id: string) => {
@@ -181,8 +195,32 @@ export function Sidebar() {
           </div>
         ) : (
           <>
-            {/* Conversations heading - always visible */}
-            {!isCollapsed && <h3 className="sidebar-section-title">Conversations</h3>}
+            {/* Conversations heading with delete all icon */}
+            {!isCollapsed && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <h3 className="sidebar-section-title" style={{ margin: 0 }}>Conversations</h3>
+                {discussions.length > 7 && (
+                  <button
+                    onClick={() => setShowDeleteAllModal(true)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: '6px',
+                      cursor: 'pointer',
+                      color: '#9ca3af',
+                      display: 'flex',
+                      alignItems: 'center',
+                      transition: 'color 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}
+                    title="Delete all conversations"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Journey button - always visible */}
             <div className="sidebar-journey-section">
@@ -304,6 +342,13 @@ export function Sidebar() {
       <AccountSettingsModal
         isOpen={showAccountSettings}
         onClose={() => setShowAccountSettings(false)}
+      />
+
+      {/* Delete All Modal */}
+      <DeleteAllModal
+        isOpen={showDeleteAllModal}
+        onClose={() => setShowDeleteAllModal(false)}
+        onConfirm={handleDeleteAll}
       />
     </aside>
   );

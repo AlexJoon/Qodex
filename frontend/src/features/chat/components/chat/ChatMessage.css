@@ -511,3 +511,38 @@
 .markdown-table tr:hover td {
   background-color: var(--gray-50);
 }
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 640px) {
+  /* Reduce message bubble padding on mobile */
+  .chat-message-content {
+    padding: 12px 14px;
+    font-size: 15px;
+  }
+
+  /* Smaller avatars on mobile */
+  .chat-message-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  /* Adjust spacing */
+  .chat-message {
+    gap: 10px;
+  }
+
+  /* Make tables scrollable on mobile */
+  .markdown-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .markdown-table {
+    font-size: 13px;
+  }
+
+  .markdown-table th,
+  .markdown-table td {
+    padding: 8px 10px;
+  }
+}

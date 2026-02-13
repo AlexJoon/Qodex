@@ -13,3 +13,17 @@
   min-width: 0;
   overflow: hidden;
 }
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 768px) {
+  /* On mobile, app-main takes full width since sidebar is overlay */
+  .app-main {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  /* Add padding-top for mobile hamburger button */
+  .app-layout {
+    position: relative;
+  }
+}

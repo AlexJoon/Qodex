@@ -230,3 +230,31 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 640px) {
+  .settings-section {
+    gap: 12px;
+  }
+
+  .settings-field {
+    gap: 6px;
+  }
+
+  .settings-field input {
+    font-size: 16px;  /* Prevents iOS zoom */
+  }
+
+  .settings-actions {
+    padding-top: 16px;
+    gap: 10px;
+  }
+
+  .settings-avatar-row {
+    gap: 12px;
+  }
+
+  .settings-avatar-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}

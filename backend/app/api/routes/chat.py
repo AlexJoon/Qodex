@@ -97,15 +97,34 @@ def _extract_person_names(query: str) -> List[str]:
     1. Tokenize query into words (alphanumeric only)
     2. Generate all 2-word and 3-word sliding windows (n-grams)
     3. Normalize each n-gram (lowercase)
-    4. Check if it exists in the instructor index
+    4. Check if it exists in the instructor index (with possessive handling)
     5. Return all validated matches
 
     Examples:
     - "what does bruce usher teach" → ["bruce usher"]
     - "Bruce Usher readings" → ["bruce usher"]
+    - "bruce ushers readings" → ["bruce usher"] (possessive handling)
     - "compare Harrison Hong and Sheila Foster" → ["harrison hong", "sheila foster"]
     - "what is ESG" → []
     """
+    def _check_index(ngram: str, instructor_index: dict) -> str:
+        """Check if ngram exists in index, trying possessive form if needed.
+
+        Returns the canonical form from the index if found, None otherwise.
+        """
+        # Try exact match first
+        if ngram in instructor_index:
+            return ngram
+
+        # Try removing possessive 's' from last word (but not 'ss' to preserve names like "James")
+        words = ngram.split()
+        if words[-1].endswith('s') and not words[-1].endswith('ss') and len(words[-1]) > 1:
+            possessive_removed = ' '.join(words[:-1] + [words[-1][:-1]])
+            if possessive_removed in instructor_index:
+                return possessive_removed
+
+        return None
+
     # Tokenize into words (alphanumeric only)
     tokens = re.findall(r'[a-zA-Z]+', query)
     if len(tokens) < 2:
@@ -125,8 +144,9 @@ def _extract_person_names(query: str) -> List[str]:
         if i in used_positions or i+1 in used_positions or i+2 in used_positions:
             continue
         ngram = ' '.join(tokens[i:i+3]).lower()
-        if ngram in instructor_index:
-            found_names.add(ngram)
+        canonical = _check_index(ngram, instructor_index)
+        if canonical:
+            found_names.add(canonical)
             used_positions.update([i, i+1, i+2])
 
     # Try 2-word combinations
@@ -134,8 +154,9 @@ def _extract_person_names(query: str) -> List[str]:
         if i in used_positions or i+1 in used_positions:
             continue
         ngram = ' '.join(tokens[i:i+2]).lower()
-        if ngram in instructor_index:
-            found_names.add(ngram)
+        canonical = _check_index(ngram, instructor_index)
+        if canonical:
+            found_names.add(canonical)
             used_positions.update([i, i+1])
 
     return list(found_names)

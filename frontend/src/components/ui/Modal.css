@@ -109,3 +109,39 @@
     transform: translateY(0) scale(1);
   }
 }
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 640px) {
+  .modal-overlay {
+    padding: 8px;
+  }
+
+  .modal-container {
+    max-width: 100% !important;  /* Override all size classes */
+    width: 100%;
+    margin: 0;
+  }
+
+  .modal-header {
+    padding: 12px 16px;
+  }
+
+  .modal-title {
+    font-size: 16px;
+  }
+
+  .modal-content {
+    padding: 12px;
+  }
+
+  /* XL modals should take full screen on mobile */
+  .modal-container.modal-xl {
+    max-height: 100vh;
+    height: 100%;
+    border-radius: 0;
+  }
+
+  .modal-container.modal-xl .modal-content {
+    height: calc(100% - 57px);
+  }
+}

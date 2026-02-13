@@ -80,3 +80,111 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* Mobile Button */
+.provider-mobile-btn {
+  display: none;  /* Hidden by default (desktop) */
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: var(--gray-100);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-700);
+  transition: all var(--transition-fast);
+}
+
+.provider-mobile-btn:hover {
+  background-color: var(--gray-200);
+}
+
+.provider-mobile-current {
+  font-weight: 600;
+}
+
+/* Provider Modal List */
+.provider-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.provider-modal-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-color: var(--gray-50);
+  transition: all var(--transition-fast);
+  text-align: left;
+  width: 100%;
+}
+
+.provider-modal-option:hover:not(:disabled) {
+  background-color: var(--gray-100);
+}
+
+.provider-modal-option.active {
+  border-color: var(--brand-500);
+  background-color: var(--brand-50);
+}
+
+.provider-modal-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.provider-modal-option-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.provider-modal-option-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+.provider-modal-option.openai .provider-modal-option-name {
+  color: var(--openai-color);
+}
+
+.provider-modal-option.mistral .provider-modal-option-name {
+  color: var(--mistral-color);
+}
+
+.provider-modal-option.claude .provider-modal-option-name {
+  color: var(--claude-color);
+}
+
+.provider-modal-option.cohere .provider-modal-option-name {
+  color: var(--cohere-color);
+}
+
+.provider-modal-option-model {
+  font-size: 12px;
+  color: var(--gray-500);
+}
+
+.provider-modal-option-check {
+  font-size: 20px;
+  color: var(--brand-600);
+  font-weight: 700;
+}
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 640px) {
+  /* Hide desktop toggles on mobile */
+  .provider-toggles {
+    display: none;
+  }
+
+  /* Show mobile button on mobile */
+  .provider-mobile-btn {
+    display: flex;
+  }
+}

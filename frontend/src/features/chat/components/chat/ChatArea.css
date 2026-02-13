@@ -116,6 +116,7 @@
 
   .chat-messages-inner {
     padding: 16px 12px;
+    padding-top: 72px;  /* Add top spacing to prevent overlap with hamburger menu */
   }
 
   .chat-input-container {
@@ -126,10 +127,24 @@
     padding: 16px 12px;
   }
 
-  /* Make quick action buttons smaller on mobile */
+  /* Smaller empty state title on mobile */
+  .empty-state-title {
+    font-size: 24px;
+  }
+
+  /* Quick actions in 2 columns (50/50) on mobile */
+  .quick-actions {
+    flex-direction: row;
+    width: 100%;
+    max-width: 100%;
+  }
+
   .quick-action-btn {
-    padding: 10px 14px;
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+    padding: 12px 12px;
     font-size: 13px;
+    justify-content: center;
   }
 }
 

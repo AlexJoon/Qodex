@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { ChatArea } from '@/features/chat';
@@ -58,15 +58,41 @@ function AppLayout() {
 
 function App() {
   const { user, isInitializing, initialize } = useAuthStore();
+  const [isProcessingAuth, setIsProcessingAuth] = useState(false);
 
   useEffect(() => {
+    // Check if URL contains auth tokens (email confirmation flow)
+    const urlHasAuthTokens = window.location.hash.includes('access_token') ||
+                            window.location.hash.includes('refresh_token');
+
+    if (urlHasAuthTokens) {
+      setIsProcessingAuth(true);
+    }
+
     initialize();
   }, [initialize]);
 
-  if (isInitializing) {
+  // Clear auth processing state and URL hash once user is authenticated
+  useEffect(() => {
+    if (user && isProcessingAuth) {
+      setIsProcessingAuth(false);
+      // Clean up URL hash after successful authentication
+      if (window.location.hash) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
+  }, [user, isProcessingAuth]);
+
+  // Show loading while initializing OR processing auth tokens
+  if (isInitializing || isProcessingAuth) {
     return (
       <div className="auth-loading">
         <div className="spinner" />
+        {isProcessingAuth && (
+          <p style={{ marginTop: '16px', color: 'var(--gray-600)' }}>
+            Confirming your email...
+          </p>
+        )}
       </div>
     );
   }

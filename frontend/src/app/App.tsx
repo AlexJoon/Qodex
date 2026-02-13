@@ -99,7 +99,7 @@ function App() {
 
   return (
     <BrowserRouter>
-      {user ? <AppLayout /> : null}
+      <AppLayout />
       <AuthModal isOpen={!user} />
     </BrowserRouter>
   );

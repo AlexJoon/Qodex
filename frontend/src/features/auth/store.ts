@@ -13,7 +13,7 @@ interface AuthState {
 
 interface AuthActions {
   initialize: () => Promise<void>;
-  signUp: (email: string, password: string, displayName?: string) => Promise<boolean>;
+  signUp: (email: string, password: string, displayName?: string, avatarIcon?: string, preferredName?: string) => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   clearError: () => void;
@@ -32,32 +32,55 @@ export const useAuthStore = create<AuthStore>((set) => ({
   // Actions
   initialize: async () => {
     try {
+      // Get current session (will automatically exchange tokens from URL if present)
       const { data: { session } } = await supabase.auth.getSession();
+
       set({
         session,
         user: session?.user ?? null,
         isInitializing: false,
       });
 
-      // Listen for auth state changes
-      supabase.auth.onAuthStateChange((_event, session) => {
-        set({
-          session,
-          user: session?.user ?? null,
-        });
+      // Listen for auth state changes (including email confirmations)
+      supabase.auth.onAuthStateChange((event, session) => {
+        console.log('Auth state change:', event, session?.user?.email);
+
+        // Handle email confirmation
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          set({
+            session,
+            user: session?.user ?? null,
+            isInitializing: false,
+          });
+        } else if (event === 'SIGNED_OUT') {
+          set({
+            session: null,
+            user: null,
+          });
+        } else {
+          set({
+            session,
+            user: session?.user ?? null,
+          });
+        }
       });
-    } catch {
+    } catch (error) {
+      console.error('Auth initialization error:', error);
       set({ isInitializing: false });
     }
   },
 
-  signUp: async (email: string, password: string, displayName?: string) => {
+  signUp: async (email: string, password: string, displayName?: string, avatarIcon?: string, preferredName?: string) => {
     set({ error: null, isLoading: true });
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { display_name: displayName || email.split('@')[0] },
+        data: {
+          display_name: displayName || email.split('@')[0],
+          avatar_icon: avatarIcon || 'user',
+          preferred_name: preferredName || '',
+        },
         emailRedirectTo: window.location.origin,
       },
     });

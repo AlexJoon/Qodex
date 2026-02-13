@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { useAuthStore } from '../store';
 import { getRememberMe, setRememberMe } from '@/shared/services/supabase';
+import { AVATAR_ICONS, getAvatarIcon } from '@/shared/constants/avatarIcons';
 import './AuthModal.css';
 
 interface AuthModalProps {
@@ -13,6 +14,9 @@ export function AuthModal({ isOpen }: AuthModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [preferredName, setPreferredName] = useState('');
+  const [selectedAvatar, setSelectedAvatar] = useState('user');
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [rememberMe, setLocalRememberMe] = useState(getRememberMe);
   const { signIn, signUp, error, isLoading, clearError } = useAuthStore();
 
@@ -22,7 +26,13 @@ export function AuthModal({ isOpen }: AuthModalProps) {
       setRememberMe(rememberMe);
       await signIn(email, password);
     } else {
-      const success = await signUp(email, password, displayName || undefined);
+      const success = await signUp(
+        email,
+        password,
+        displayName || undefined,
+        selectedAvatar,
+        preferredName || undefined
+      );
       if (success) {
         setMode('confirm');
       }
@@ -68,17 +78,87 @@ export function AuthModal({ isOpen }: AuthModalProps) {
       ) : (
         <form className="auth-form" onSubmit={handleSubmit}>
           {mode === 'signup' && (
-            <div className="auth-field">
-              <label htmlFor="displayName">Display Name</label>
-              <input
-                id="displayName"
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Your name"
-                autoComplete="name"
-              />
-            </div>
+            <>
+              <div className="auth-field">
+                <label htmlFor="displayName">Display Name</label>
+                <input
+                  id="displayName"
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Your name"
+                  autoComplete="name"
+                />
+              </div>
+
+              {/* Avatar and Preferred Name Row - matching AccountSettingsModal */}
+              <div className="auth-avatar-row">
+                <div className="auth-avatar-section">
+                  <div className="auth-avatar-header">
+                    <label className="auth-avatar-label">Avatar</label>
+                    <button
+                      type="button"
+                      className="auth-avatar-current"
+                      onClick={() => setShowAvatarPicker(!showAvatarPicker)}
+                      title="Click to change avatar"
+                    >
+                      {(() => {
+                        const CurrentIcon = getAvatarIcon(selectedAvatar);
+                        return <CurrentIcon size={20} />;
+                      })()}
+                    </button>
+                  </div>
+
+                  {/* Avatar Picker Dropdown */}
+                  {showAvatarPicker && (
+                    <div className="auth-avatar-dropdown">
+                      <div className="auth-avatar-dropdown-header">
+                        <span>Choose an Avatar</span>
+                        <button
+                          type="button"
+                          className="auth-avatar-dropdown-close"
+                          onClick={() => setShowAvatarPicker(false)}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="auth-avatar-grid">
+                        {AVATAR_ICONS.map((avatar) => {
+                          const Icon = avatar.icon;
+                          return (
+                            <button
+                              key={avatar.id}
+                              type="button"
+                              className={`auth-avatar-option ${avatar.id === selectedAvatar ? 'active' : ''}`}
+                              onClick={() => {
+                                setSelectedAvatar(avatar.id);
+                                setShowAvatarPicker(false);
+                              }}
+                              title={avatar.label}
+                            >
+                              <Icon size={16} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="auth-preferred-section">
+                  <label htmlFor="preferredName" className="auth-avatar-label">What should Qodex call you?</label>
+                  <div className="auth-input-row">
+                    <input
+                      id="preferredName"
+                      type="text"
+                      className="auth-preferred-input"
+                      value={preferredName}
+                      onChange={(e) => setPreferredName(e.target.value)}
+                      placeholder="e.g. Joe, Laura"
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
           )}
 
           <div className="auth-field">

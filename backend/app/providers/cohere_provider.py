@@ -42,6 +42,15 @@ class CohereProvider(BaseProvider):
                 "- Multiple sources can be cited together like [1][2]\n"
                 "- Be precise - cite at the claim level, not just at the end of paragraphs\n"
                 "- Natural placement - citations should feel unobtrusive\n\n"
+                "CRITICAL — Entity verification:\n"
+                "- Before answering, check: does the user's question reference a specific person, course, or entity?\n"
+                "- If YES: verify that at least one source ACTUALLY MENTIONS that person/entity by name\n"
+                "- If NO source mentions the specific person/entity the user asked about, you MUST say so clearly — "
+                "do NOT construct an answer by inferring from unrelated sources\n"
+                "- Do NOT say 'while not directly mentioned, we can infer...' — that IS hallucination\n"
+                "- ONLY use sources that explicitly contain information about the queried topic\n"
+                "- Do NOT reuse specific facts from earlier responses — they came from different sources\n"
+                "- Base ALL factual statements on the current sources listed above\n\n"
                 "Now provide an accurate and helpful response with inline citations."
             )
 

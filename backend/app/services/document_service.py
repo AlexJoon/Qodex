@@ -30,6 +30,9 @@ class DocumentService:
         # In-memory cache — hydrated from disk on startup
         self._documents: Dict[str, Document] = {}
         self._load_registry()
+        # Instructor → document_ids index for entity-first retrieval
+        self.instructor_index: Dict[str, List[str]] = {}
+        self._build_instructor_index()
 
     # =========================================================================
     # Document registry persistence
@@ -56,6 +59,78 @@ class DocumentService:
             _REGISTRY_PATH.write_text(json.dumps(data, default=str))
         except Exception as e:
             logger.warning(f"Failed to save document registry: {e}")
+
+    # =========================================================================
+    # Instructor index for entity-first retrieval
+    # =========================================================================
+
+    def _extract_instructor_from_filename(self, filename: str) -> Optional[str]:
+        """Extract instructor name from filename using common patterns.
+
+        Patterns:
+        - "InstructorName_Topic.pdf" (at beginning)
+        - "SyllabusReadings_Topic_InstructorName_Term.pdf"
+        - "CourseCode_InstructorName.pdf"
+        - "InstructorName_Topic.pdf" (at end)
+        """
+        # Remove extension
+        name = re.sub(r'\.[^.]+$', '', filename)
+
+        # Pattern 0: InstructorName at beginning (e.g., "BruceUsher_American-Innovation...")
+        # Match CamelCase or single capitalized words at the start
+        match = re.match(r'^([A-Z][a-z]+(?:[A-Z][a-z]+)*)_', name)
+        if match:
+            return match.group(1)
+
+        # Pattern 1: ..._InstructorName_Fall2025 or ..._InstructorName_Spring2024
+        match = re.search(r'_([A-Z][a-z]+(?:[A-Z][a-z]+)?)_(?:Fall|Spring|Summer)\d{4}', name)
+        if match:
+            return match.group(1)
+
+        # Pattern 2: CourseCode_InstructorName (e.g., "SUMA PS5021_Kliegman")
+        match = re.search(r'[A-Z]{3,5}\s+[A-Z]{2}\d{4}_([A-Z][a-z]+)', name)
+        if match:
+            return match.group(1)
+
+        # Pattern 3: InstructorName at end before extension (e.g., "Topic-InstructorName.pdf")
+        parts = re.split(r'[-_]', name)
+        if len(parts) >= 2:
+            last_part = parts[-1]
+            if last_part and last_part[0].isupper() and not last_part.isupper():
+                # Looks like a capitalized name (not an acronym)
+                return last_part
+
+        return None
+
+    def _build_instructor_index(self) -> None:
+        """Build reverse index: instructor name → list of document IDs."""
+        self.instructor_index.clear()
+        for doc in self._documents.values():
+            instructor = self._extract_instructor_from_filename(doc.filename)
+            if instructor:
+                # Normalize: "TKhotin" → "tkhotin", "BruceUsher" → "bruce usher"
+                normalized = re.sub(r'(?<!^)(?=[A-Z])', ' ', instructor).lower()
+                if normalized not in self.instructor_index:
+                    self.instructor_index[normalized] = []
+                self.instructor_index[normalized].append(doc.id)
+
+        if self.instructor_index:
+            logger.info(f"Built instructor index: {len(self.instructor_index)} instructors, "
+                       f"{sum(len(docs) for docs in self.instructor_index.values())} documents")
+
+    def get_documents_by_instructor(self, instructor_name: str) -> Optional[List[str]]:
+        """Get document IDs for a given instructor name (case-insensitive, exact match only).
+
+        Returns:
+            List of document IDs if found, None otherwise.
+        """
+        normalized = instructor_name.lower().strip()
+
+        # Exact match only (no fuzzy matching to prevent cross-contamination)
+        if normalized in self.instructor_index:
+            return self.instructor_index[normalized]
+
+        return None
 
     async def bootstrap_registry(self) -> int:
         """Discover all documents from Pinecone and populate the registry.

@@ -39,5 +39,6 @@ htmlcov/
 *.temp
 .cache/
 
-# Syllabi folder
+# Syllabi folders
 Syllabi/
+New_Syllabi/
